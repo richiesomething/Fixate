@@ -108,7 +108,7 @@ if(set.quiz==='off')set.checks='off';else if(set.checkStyle&&set.checks==null)se
 delete store.bonus;delete store.preds;
 for(const k of['program','ladderPeak','ladderStep','sprintPct','sprintSec','restSec','grow','tones','haptic','slates','predict','sessRecap','recap','preteach','quiz','checkStyle','cueFlash','cueFlashMs','cueFlashMode','cueTint','cueTicks','cueLabel','guesses','italic','coach_old'])delete set[k];
 if(!FOCAL_KEYS.includes(set.focal))set.focal='classic';
-for(const k of['pos','max','words','taught','last','sums','previews','shelf'])if(!store[k])store[k]={};for(const k of['qbank','preds'])if(!store[k])store[k]=[];
+for(const k of['pos','max','words','taught','last','sums','previews','shelf','place'])if(!store[k])store[k]={};for(const k of['qbank','preds'])if(!store[k])store[k]=[];
 if(store.book==null&&store.i)store.pos.trial=store.i; // migrate earlier single-book position
 const pendingBook=store.book;
 const startId=LIB.find(b=>b.id===store.book)?store.book:LIB[0].id;
@@ -352,7 +352,7 @@ function openSession(){
 }
 
 /* ================= playback ================= */
-let playing=false,timer=0,ramp=0,movedSincePause=true,chapterEnd=false,lastT=0;
+let lastAutoSave=0,playing=false,timer=0,ramp=0,movedSincePause=true,chapterEnd=false,lastT=0;
 /* ---- timing model ----
    Each chunk's time is computed in "average word" units from:
    - per-word processing cost, precomputed offline from word length, word frequency, how predictable the
@@ -406,6 +406,8 @@ function step(){
   if(set.chapStop&&(F[last]&8)){chapterEnd=true;pause();chapterCheckpoint();return}
   if(set.widthMode==='auto'&&syncChunks())layout();
   idx=Math.min(N-1,last+1);
+  store.place[BOOKID]=idx;
+  if(performance.now()-lastAutoSave>5000){lastAutoSave=performance.now();save(true)}
   if(needsNameFlash(idx)){
     renderName(idx);renderPlace();
     timer=setTimeout(()=>{if(!playing)return;lastT=performance.now();render();timer=setTimeout(step,delay(idx,true))},FLASH_MS);
@@ -442,6 +444,18 @@ function go(i,keepPlaying,rw){
   if(rw)noteRewind();
   if(playing&&keepPlaying){clearTimeout(timer);stage.classList.remove('slating');ramp=3;lastT=performance.now();render();timer=setTimeout(step,delay(idx))}
   else{if(playing)pause();else render();save()}
+  offerReturn();
+}
+/* Auto-bookmark: store.place is the last spot you were actually reading. If you jump well away from it
+   (scrubbing, a chapter, a tapped word) a prompt offers to take you straight back. */
+let offerT=0;
+function offerReturn(){
+  clearTimeout(offerT);
+  offerT=setTimeout(()=>{
+    const p=store.place[BOOKID];
+    if(p==null||playing||Math.abs(idx-p)<250||app.classList.contains('quizzing'))return;
+    toast(`Your place: ${BOOK[chapterOf(p)].t}, ${Math.round(p/(N-1)*100)}% in.`,[{t:'Go back',pri:true,f:()=>go(p)}],10000);
+  },700);
 }
 function sentence(dir){
   const s=sentIdx(idx);
@@ -1249,7 +1263,7 @@ async function removeBook(id){
   const b=LIB.find(x=>x.id===id);if(!b||!b.uploaded)return;
   if(!confirm(`Remove “${b.title}” from this device? Your place and saved notes for it will be lost.`))return;
   try{await idb.del(id)}catch(e){}
-  LIB.splice(LIB.indexOf(b),1);delete cache[id];delete store.pos[id];delete store.max[id];delete store.shelf[id];
+  LIB.splice(LIB.indexOf(b),1);delete cache[id];delete store.pos[id];delete store.place[id];delete store.max[id];delete store.shelf[id];
   if(BOOKID===id)switchBook(LIB[0].id);else drawChapters();
   save(true);
 }
@@ -1421,7 +1435,7 @@ function openBookCard(id){
   $('bcClose').onclick=()=>bookDlg.close();
   $('bcShelf').onclick=ev=>{const x=ev.target.closest('button');if(!x)return;setShelf(id,x.dataset.v);openBookCard(id);refreshShelves()};
   $('bcRead').onclick=()=>{
-    if(st==='finished'){store.pos[id]=0;setShelf(id,'reading')}
+    if(st==='finished'){store.pos[id]=0;delete store.place[id];setShelf(id,'reading')}
     bookDlg.close();closeShelf();if(sheet.open)closeSheet();
     if(id!==BOOKID)switchBook(id);else if(st==='finished'){go(0)}
   };
@@ -1464,7 +1478,7 @@ stage.addEventListener('pointermove',e=>{
     if(steps!==drag.last){let i=drag.i;for(let k=0;k<Math.abs(steps);k++)i=steps>0?nextUnit(i):prevUnit(i);drag.last=steps;idx=i;movedSincePause=true;chapterEnd=false;render();if(e.pointerType==='touch'&&navigator.vibrate)navigator.vibrate(3)}
   }
 });
-stage.addEventListener('pointerup',()=>{if(drag&&!drag.moved)toggle();else if(drag){if(drag.last<0)noteRewind();save()}drag=null});
+stage.addEventListener('pointerup',()=>{if(drag&&!drag.moved)toggle();else if(drag){if(drag.last<0)noteRewind();save();offerReturn()}drag=null});
 stage.addEventListener('pointercancel',()=>drag=null);
 stage.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();toggle()}});
 
@@ -1492,9 +1506,9 @@ $('tabs').addEventListener('keydown',e=>{
   e.preventDefault();tabs[j].focus();showTab(tabs[j].dataset.tab);
 });
 function drawChapters(){
-  const cur=chapterOf(idx);
+  const cur=chapterOf(idx),placeCh=store.place[BOOKID]!=null?chapterOf(store.place[BOOKID]):-1;
   $('chapList').innerHTML=BOOK.map((c,i)=>{const done=chapterDone(i),sm=store.sums[ckey(i)];
-    return`<li class="chrow${done?'':' unread'}"><button data-c="${i}" class="${i===cur?'on':''}"><span class="n">${i+1}</span><span style="flex:1"><div class="tt">${esc(c.t)}</div><div class="st">${esc(c.s)}${i===cur&&!done?' · in progress':done?' · read':''}</div></span></button>${done&&(AI()||sm)?`<button class="btn chsum" data-sum="${i}" aria-expanded="false">${sm?'Summary':'Summarise'}</button>`:''}<div class="chbody" id="chb${i}" hidden></div></li>`}).join('');
+    return`<li class="chrow${done?'':' unread'}"><button data-c="${i}" class="${i===cur?'on':''}"><span class="n">${i+1}</span><span style="flex:1"><div class="tt">${esc(c.t)}</div><div class="st">${esc(c.s)}${i===placeCh&&placeCh!==cur?' · your place':''}${i===cur&&!done?' · in progress':done?' · read':''}</div></span></button>${done&&(AI()||sm)?`<button class="btn chsum" data-sum="${i}" aria-expanded="false">${sm?'Summary':'Summarise'}</button>`:''}<div class="chbody" id="chb${i}" hidden></div></li>`}).join('');
   drawLibrary();
 }
 function bookProgress(id){
@@ -1521,9 +1535,11 @@ async function switchBook(id){
   if(id===BOOKID)return;
   useModel(buildModel(id));
   idx=clamp(store.pos[id]|0,0,N-1);
+  if(store.place[id]==null&&idx>0)store.place[id]=idx;
   scrub.max=N-1;pgFrom=-1;pgTo=-1;lastWho=null;lastPlace=null;chapterEnd=false;lastQuizIdx=0;rewinds=[];
   sessOpen=null;
   setHeader();drawChapters();syncChunks();layout();save(true);
+  if(idx>0&&idx<N-1)toast(`Picking up in ${BOOK[chapterOf(idx)].t}, ${Math.round(idx/(N-1)*100)}% in.`,[],4000);
 }
 $('bookBtn').onclick=()=>openSheet('chapters');
 function showWelcome(){
@@ -1739,7 +1755,9 @@ window.addEventListener('resize',()=>{pgLastTop=-1;layout()});
 scrub.max=N-1;setHeader();drawChapters();updateBadge();
 speed.value=wpm;fill(speed);$('wpmVal').textContent=wpm;
 applySettings();
+if(store.place[BOOKID]==null&&idx>0)store.place[BOOKID]=idx;
 if(!store.seen)showWelcome();
+else if(idx>0&&idx<N-1)setTimeout(()=>{if(!playing&&!app.classList.contains('quizzing'))toast(`Welcome back. Picking up in ${BOOK[chapterOf(idx)].t}, ${Math.round(idx/(N-1)*100)}% in.`,[],4500)},600);
 uploadsReady.then(()=>{if(pendingBook&&pendingBook!==BOOKID&&LIB.find(b=>b.id===pendingBook))switchBook(pendingBook);if(sheet.open&&curTab==='chapters')drawChapters()});
 (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>layout());
 })();
