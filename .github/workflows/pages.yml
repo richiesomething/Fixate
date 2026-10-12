@@ -1,0 +1,24 @@
+# Publishes the app to GitHub Pages: every push to main updates the gh-pages branch, which Pages serves.
+name: Publish to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Push site to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan gh-pages-build
+          git rm -rq --cached .github docs tools README.md .gitignore
+          git commit -qm "Publish ${GITHUB_SHA::7}"
+          git push -f origin gh-pages-build:gh-pages
