@@ -208,7 +208,6 @@ function layout(){
 function renderFlash(){
   const n=unitLen(idx), txt=W.slice(idx,idx+n).join(' '), p=phrasePivot(txt);
   wordEl.innerHTML=`<span>${esc(txt.slice(0,p))}</span><span class="pv">${esc(txt[p])}</span><span>${esc(txt.slice(p+1))}</span>`;
-  wordEl.classList.remove('fname');
   const sp=set.voices&&showSpk(idx);
   wordEl.style.color=sp?`color-mix(in srgb, ${colorOf(S[idx])} ${G[idx]?55:75}%, var(--word))`:'';
   wordEl.style.fontSize=baseSize+'px';
@@ -217,19 +216,6 @@ function renderFlash(){
   const s=Math.min(1,(pivotX-4)/lw,(stageW-pivotX-4)/rw);
   if(s<1){wordEl.style.fontSize=Math.max(16,baseSize*s)+'px';lw=pre.offsetWidth+pv.offsetWidth/2}
   wordEl.style.left=(pivotX-lw)+'px';
-}
-function renderName(i){
-  const s=S[i];
-  wordEl.classList.add('fname');wordEl.style.color=colorOf(s);
-  wordEl.innerHTML=`<span><span class="q">“</span>${esc(SPK[s])}${G[i]?'<span class="g">?</span>':''}</span>`;
-  wordEl.style.fontSize=Math.min(baseSize*.78,40)+'px';
-  const w=wordEl.firstChild.offsetWidth;
-  wordEl.style.left=clamp(pivotX-w*.4,4,stageW-w-4)+'px';
-  stage.classList.add('speech');stage.classList.add('ticks');stage.style.setProperty('--voice',colorOf(s));
-}
-function needsNameFlash(i){
-  if(!set.voices||set.view!=='flash'||!U[i]||!showSpk(i)||prevSpeaker(i)===S[i])return false;
-  return true;
 }
 function renderWho(){
   const on=set.voices&&S[idx]>=0, s=S[idx], vis=on&&showSpk(idx);
@@ -363,7 +349,7 @@ let lastAutoSave=0,playing=false,timer=0,ramp=0,movedSincePause=true,chapterEnd=
    - extra time when a chunk is visually wide
    - wrap-up pauses at commas, sentence ends (longer after long sentences), paragraphs and chapters
    Everything is then scaled so the book as a whole runs at exactly the speed you set. */
-const FLASH=.35,PAR=.85,FLASH_MS=400;
+const FLASH=.35,PAR=.85;
 function chunkUnits(i){
   const n=CL[i],a=+set.adapt,k=+set.pause;
   let u=FLASH,chars=-1;
@@ -374,20 +360,20 @@ function chunkUnits(i){
   return u+e*k;
 }
 function recalcNorm(){
-  let Un=0,i=0;const base=60000/curWpm(),flashOn=set.voices&&set.view==='flash';
+  let Un=0,i=0;
   while(i<N){
     Un+=chunkUnits(i);
-    if(set.voices&&U[i]&&S[i]>=0){const ch=prevSpeaker(i)!==S[i];Un+=flashOn?(ch?FLASH_MS/base:.35):.35+(ch?.35:0)}
+    if(set.voices&&U[i]&&S[i]>=0)Un+=.35+(prevSpeaker(i)!==S[i]?.35:0);
     i+=CL[i];
   }
   const U_=Un;
   unitPerWord=U_/N;normDirty=false;
 }
-function delay(i,flashed){
+function delay(i){
   if(normDirty)recalcNorm();
   const base=60000/curWpm();
   let ms=chunkUnits(i)*base/unitPerWord;
-  if(set.voices&&U[i]&&!flashed){ms+=base*.35;if(prevSpeaker(i)!==S[i])ms+=base*.35}
+  if(set.voices&&U[i]){ms+=base*.35;if(prevSpeaker(i)!==S[i])ms+=base*.35}
   if(ramp>0){ms*=1+ramp*.12;ramp--}
   return Math.max(base*.4,ms);
 }
@@ -408,11 +394,6 @@ function step(){
   idx=Math.min(N-1,last+1);
   store.place[BOOKID]=idx;
   if(performance.now()-lastAutoSave>5000){lastAutoSave=performance.now();save(true)}
-  if(needsNameFlash(idx)){
-    renderName(idx);renderPlace();
-    timer=setTimeout(()=>{if(!playing)return;lastT=performance.now();render();timer=setTimeout(step,delay(idx,true))},FLASH_MS);
-    return;
-  }
   if(set.aiSpeakers&&AI()){const c=chapterOf(idx);if(idx-chStart[c]>(chapterEndOf(c)-chStart[c])*.7)refineSpeakers(c+1<BOOK.length?c+1:-1)}
   render();
   if(set.coach&&Date.now()-lastRewindAt>8*60000&&sessOpen&&sessOpen.ms>8*60000&&wpm<1000)suggestSpeed(25,'Eight minutes without going back.');
@@ -1548,7 +1529,7 @@ function showWelcome(){
   <div class="qq">Read faster, and understand more of what you read.</div>
   <div class="feat">
     <div><svg class="i"><use href="#i-eye"/></svg><span><b>One phrase at a time.</b> Keep your eyes still while the text comes to you. Tap the reader to start, drag it to go back.</span></div>
-    <div><svg class="i"><use href="#i-chat"/></svg><span><b>Always know who is talking.</b> Each character's name and colour appears with their words.</span></div>
+    <div><svg class="i"><use href="#i-chat"/></svg><span><b>Always know who is talking.</b> Each character's words take on their own colour.</span></div>
     <div><svg class="i"><use href="#i-spark"/></svg><span><b>Help when you need it.</b> A reading guide, word meanings, quick checks and progress tracking.</span></div>
   </div>
   <div class="k">Choose a book to start</div>
@@ -1618,7 +1599,7 @@ const SETTINGS=[
   {k:'width',type:'range',label:'Chunk width',min:0,max:36,step:1,fmt:wFmt,show:()=>set.widthMode==='manual',live:()=>{const p=$('preview');if(p)p.parentElement.outerHTML=previewHTML()}},
   {type:'html',html:previewHTML},
   {k:'adapt',type:'seg',label:'Adaptive timing',opts:[['0','Off'],['0.6','Gentle'],['1','Full']],desc:'Gives hard passages more time and easy ones less, while the book as a whole runs at your set speed.'},
-  {k:'voices',type:'toggle',label:'Speaker cues',desc:'When someone new starts talking, their name flashes in the reading spot and their words take on their colour.'},
+  {k:'voices',type:'toggle',label:'Speaker cues',desc:'Each character\'s words take on their own colour, with a short pause when someone new starts talking.'},
   {k:'checks',type:'seg',label:'After each chapter',opts:[['off','Off'],['choose','Ask me'],['summary','Summary'],['question','Question']],desc:'Summarise the chapter in your own words or answer one question. Writing your own summary first builds the strongest memory.',show:()=>!!AI()},
   {type:'grp',label:'Look'},
   {k:'theme',type:'seg',label:'Theme',opts:[['system','Auto'],['light','Day'],['dark','Dusk'],['night','Night']],desc:'Night uses warm, dim colours with little blue light.'},

@@ -71,9 +71,6 @@ main{flex:1;display:flex;flex-direction:column;justify-content:center;min-height
 .stage.ticks .tick{background:var(--voice);width:3px;height:18px;transform:translateX(-1.5px);opacity:1;border-radius:2px}
 .stage.ticks .tick.t{top:42px}
 .stage.ticks .tick.b{bottom:36px;transform:translate(-1.5px,0)}
-.word.fname{font-family:var(--serif);font-style:italic;font-weight:500;letter-spacing:0}
-.word.fname .q{font-style:normal;margin-right:4px;opacity:.8}
-.word.fname .g{opacity:.5}
 .word{transition:color .12s var(--ease)}
 .who .q{font-style:normal;font-size:22px;line-height:0;vertical-align:-4px;margin-right:3px}
 .who .g{opacity:.5}
