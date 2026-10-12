@@ -216,6 +216,7 @@ dialog.closing::backdrop{opacity:0;transition:opacity .2s var(--ease)}
 .bk{flex:none;width:40px;height:54px;border-radius:4px 8px 8px 4px;background:linear-gradient(90deg,rgba(0,0,0,.12) 0 4px,transparent 4px),var(--c,var(--surface2));display:grid;place-items:center;font-family:var(--serif);font-size:19px;color:var(--paper);box-shadow:var(--sh1)}
 .dot{flex:none;width:32px;height:32px;border-radius:50%;border:0;background:none;display:grid;place-items:center;cursor:pointer;padding:0;margin:-4px 0 0 -4px}
 .dot::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--c)}
+.bk.cl{width:34px;height:46px;font-size:15px;color:var(--foil);background:linear-gradient(90deg,rgba(0,0,0,.3) 0 3px,transparent 3px),var(--tile) 5px 3px/15px auto,var(--sc);overflow:hidden}.bk.cl span{background:var(--sc);padding:1px 5px;border:1px solid color-mix(in srgb,var(--foil) 70%,transparent);box-shadow:0 0 0 2px var(--sc)}
 .tt{font-family:var(--serif);font-size:16.5px;line-height:1.35}
 .st{font-size:13px;color:var(--mute);margin-top:3px;line-height:1.5}
 .note{font-size:13px;color:var(--mute);margin:4px 20px 12px;line-height:1.55}
@@ -351,15 +352,20 @@ details .sumtext,details .ctxnote{margin-top:8px}
 .shelf.small .row{min-height:110px;padding-top:14px}
 .plank{height:14px;margin:0 6px;border-radius:3px;background:linear-gradient(180deg,var(--wood1),var(--wood2));box-shadow:inset 0 -3px 0 var(--woodedge),0 8px 14px -6px rgba(0,0,0,.35)}
 .shelf-empty{flex:1;align-self:stretch;margin:0 0 6px;border:1.5px dashed var(--rule);border-radius:10px;display:grid;place-items:center;text-align:center;font-size:13px;color:var(--mute);padding:12px;min-height:90px}
-.spine{position:relative;flex:none;border:0;padding:12px 0;border-radius:3px 3px 1px 1px;cursor:pointer;color:var(--spinetext);scroll-snap-align:start;
-  background:linear-gradient(90deg,rgba(0,0,0,.32),rgba(255,255,255,.10) 16%,rgba(255,255,255,0) 45%,rgba(0,0,0,.06) 70%,rgba(255,255,255,.07) 84%,rgba(0,0,0,.36)),var(--sc);
+.spine{position:relative;flex:none;border:0;padding:12px 0;border-radius:3px 3px 1px 1px;cursor:pointer;color:var(--foil,var(--spinetext));scroll-snap-align:start;overflow:visible;
+  background:linear-gradient(90deg,rgba(0,0,0,.32),rgba(255,255,255,.10) 16%,rgba(255,255,255,0) 45%,rgba(0,0,0,.06) 70%,rgba(255,255,255,.07) 84%,rgba(0,0,0,.36)),repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 1px,transparent 1px 3px),var(--sc);
   box-shadow:0 1px 0 rgba(255,255,255,.08) inset,2px 0 3px rgba(0,0,0,.18);display:flex;flex-direction:column;align-items:center;justify-content:space-between;transition:transform .25s var(--ease)}
 .spine:hover,.spine:focus-visible{transform:translateY(-6px)}
 .spine.cur{transform:translateY(-4px)}
-.spine .band{display:block;width:70%;height:5px;border-top:1px solid var(--gilt);border-bottom:1px solid var(--gilt);opacity:.75;flex:none}
-.spine .stitle{flex:1;min-height:0;writing-mode:vertical-rl;font-family:var(--serif);font-size:12.5px;font-weight:500;letter-spacing:.02em;line-height:1.12;overflow:hidden;white-space:normal;text-align:center;padding:8px 0;max-width:calc(100% - 6px);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.spine::before{content:"";position:absolute;inset:24px 3px;background:var(--tile) center top/auto;opacity:.8;pointer-events:none}
+.shelf.small .spine::before{inset:18px 2px;background-size:76% auto}
+.spine>*{position:relative;z-index:1}
+.spine .band{display:block;width:70%;height:5px;border-top:1px solid var(--foil,var(--gilt));border-bottom:1px solid var(--foil,var(--gilt));opacity:.85;flex:none}
+.spine .splate{flex:0 1 auto;min-height:0;max-width:calc(100% - 6px);max-height:calc(100% - 34px);display:flex;flex-direction:column;align-items:center;gap:5px;background:var(--sc);padding:7px 1px;border:1px solid color-mix(in srgb,var(--foil,var(--gilt)) 75%,transparent);border-radius:2px;box-shadow:0 0 0 3px var(--sc);overflow:hidden;margin:auto 0}
+.shelf.small .spine .splate{padding:5px 0;max-height:calc(100% - 30px);max-width:calc(100% - 4px);box-shadow:0 0 0 2px var(--sc)}
+.spine .stitle{flex:0 1 auto;min-height:0;writing-mode:vertical-rl;font-family:var(--serif);font-size:11.5px;font-weight:500;letter-spacing:0;line-height:1.2;overflow:hidden;white-space:normal;text-align:center;padding:4px 0;display:block}
 .shelf.small .spine .stitle{font-size:9.5px;padding:3px 0}
-.spine .sauth{font-family:var(--serif);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.85;writing-mode:vertical-rl;margin-bottom:4px;flex:none;max-height:56px;overflow:hidden}
+.spine .sauth{font-family:var(--serif);font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;opacity:.85;writing-mode:vertical-rl;margin-bottom:0;flex:none;max-height:46px;overflow:hidden}
 .spine .ribbon{position:absolute;top:-10px;right:22%;width:6px;height:22px;background:var(--focal);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%);box-shadow:0 1px 2px rgba(0,0,0,.25)}
 .shelfhead{display:flex;justify-content:space-between;align-items:center}
 .shelfhead .btn{height:32px;padding:0 10px;font-size:13px}
@@ -377,13 +383,14 @@ details .sumtext,details .ctxnote{margin-top:8px}
 .bookdlg::backdrop{background:rgba(10,12,11,.45)}
 .bookdlg[open]{animation:popIn .22s var(--ease-out)}
 .bookcard{padding:22px;display:grid;gap:18px;justify-items:center}
-.cover{width:150px;aspect-ratio:2/3;border-radius:4px 10px 10px 4px;position:relative;color:var(--spinetext);display:flex;flex-direction:column;align-items:center;padding:20px 14px;text-align:center;
-  background:linear-gradient(90deg,rgba(0,0,0,.35) 0 7px,rgba(255,255,255,.08) 7px 9px,rgba(0,0,0,0) 14px),linear-gradient(160deg,rgba(255,255,255,.10),rgba(0,0,0,.18)),var(--sc);box-shadow:0 14px 30px -10px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.2)}
-.cvband{width:80%;height:6px;border-top:1px solid var(--gilt);border-bottom:1px solid var(--gilt);opacity:.8}
-.cvtitle{font-family:var(--serif);font-weight:600;font-size:17px;line-height:1.2;margin-top:22px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical}
-.cvrule{width:30px;height:1px;background:var(--gilt);margin:12px 0}
-.cvauthor{font-family:var(--serif);font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
-.cvmark{margin-top:auto;opacity:.75}.cvmark svg{width:20px;height:20px}
+.cover{width:168px;aspect-ratio:2/3;border-radius:4px 10px 10px 4px;position:relative;color:var(--foil,var(--spinetext));overflow:hidden;text-align:center;
+  background:linear-gradient(90deg,rgba(0,0,0,.38) 0 6px,rgba(255,255,255,.10) 6px 8px,rgba(0,0,0,0) 17px),linear-gradient(160deg,rgba(255,255,255,.10),rgba(0,0,0,.2)),repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 1px,transparent 1px 3px),var(--sc);box-shadow:0 14px 30px -10px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.2)}
+.cvpat{position:absolute;inset:14px 12px 14px 20px;background:var(--tile) center/auto;opacity:.85;border:1px solid color-mix(in srgb,var(--foil) 80%,transparent);outline:1px solid color-mix(in srgb,var(--foil) 45%,transparent);outline-offset:3px}
+.cvplate{position:absolute;left:30px;right:22px;top:36px;background:var(--sc);border:1px solid color-mix(in srgb,var(--foil) 80%,transparent);padding:14px 8px 12px;box-shadow:0 0 0 5px var(--sc)}
+.cvtitle{font-family:var(--serif);font-weight:600;font-size:16px;line-height:1.22;letter-spacing:.05em;text-transform:uppercase;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.cvrule{width:28px;height:1px;background:var(--foil);margin:9px auto}
+.cvauthor{font-family:var(--serif);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.92}
+.cvmark{position:absolute;left:calc(50% + 4px);bottom:30px;transform:translateX(-50%);background:var(--sc);border-radius:50%;padding:5px;box-shadow:0 0 0 4px var(--sc);display:grid;place-items:center}.cvmark svg{width:22px;height:22px}
 .bcbody{width:100%;display:grid;gap:10px;text-align:center}
 .bcbody .tt{font-size:19px}
 .bcprog{display:grid;gap:6px;font-size:13px;color:var(--mute)}

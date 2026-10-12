@@ -1311,10 +1311,41 @@ const SPINE_FIXED={trial:'#2B303B',ss:'#6E2A35',w80:'#2F5A44'};
 const SHELVES=[['reading','Reading now'],['want','Want to read'],['finished','Finished']];
 function strHash(s){let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619)>>>0;return h}
 function bookWords(b){return (cache[b.id]&&cache[b.id].N)||b.words||60000}
+/* Cloth-bound look: every book gets a cloth colour, a foil colour and a repeating foil pattern, drawn
+   here from scratch (no artwork is downloaded). The built-in books have a pattern drawn for their
+   story; other books get one of the generic patterns, chosen from the title. */
+const FOIL_FIXED={trial:'#D9C48E',ss:'#EBD6B4',w80:'#E4C96F'};
+const FOILS=['#D9C48E','#EBD6B4','#CFDCC8','#E3BC8C'];
+const MOTIF_FIXED={trial:'keys',ss:'leaves',w80:'clocks'};
+const MOTIFS=['lattice','scales','stars','dots'];
+function tileSVG(kind,f){
+  const open=(w,h)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  const st=`fill="none" stroke="${f}" stroke-linecap="round"`;
+  const key=(x,y)=>`<circle cx="${x}" cy="${y-2}" r="3.1"/><path d="M${x-1.5} ${y}h3l1.4 6.6h-5.8z"/>`;
+  switch(kind){
+    case 'keys': // keyholes, for The Trial
+      return open(24,32)+`<g fill="${f}">${key(12,12)}${key(0,28)}${key(0,-4)}${key(24,28)}${key(24,-4)}</g><g fill="${f}" opacity=".6"><circle cx="0" cy="6" r=".9"/><circle cx="24" cy="6" r=".9"/><circle cx="12" cy="26" r=".9"/></g></svg>`;
+    case 'leaves': // paired sprigs and berries, for Sense and Sensibility
+      return open(28,30)+`<g ${st} stroke-width="1.2"><path d="M14 26C7 20 7 10 14 4c7 6 7 16 0 22z"/><path d="M14 26V8" stroke-width=".8"/><path d="M14 17q-4-1-6-5M14 17q4-1 6-5" stroke-width=".8"/></g><g fill="${f}"><circle cx="0" cy="0" r="2"/><circle cx="28" cy="0" r="2"/><circle cx="0" cy="30" r="2"/><circle cx="28" cy="30" r="2"/><circle cx="14" cy="1" r="1"/></g></svg>`;
+    case 'clocks': // dials showing different times, for Around the World in Eighty Days
+      return open(30,30)+`<g ${st}><circle cx="15" cy="15" r="9.5" stroke-width="1.2"/><path d="M15 6.5v2M15 21.5v2M6.5 15h2M21.5 15h2M15 15V9.5M15 15l4.4 2.6" stroke-width="1.3"/></g><circle cx="15" cy="15" r="1.1" fill="${f}"/>${[[0,0],[30,0],[0,30],[30,30]].map(([x,y],k)=>`<g transform="translate(${x} ${y}) rotate(${k*70})" ${st} stroke-width=".9"><circle r="3.6"/><path d="M0 0v-2.5M0 0l1.8.8"/></g>`).join('')}</svg>`;
+    case 'lattice':
+      return open(20,20)+`<path d="M10 0L20 10 10 20 0 10z" ${st} stroke-width="1"/><circle cx="10" cy="10" r="1.4" fill="${f}"/><circle cx="0" cy="0" r="1" fill="${f}"/><circle cx="20" cy="0" r="1" fill="${f}"/><circle cx="0" cy="20" r="1" fill="${f}"/><circle cx="20" cy="20" r="1" fill="${f}"/></svg>`;
+    case 'scales':
+      return open(20,12)+`<path d="M0 12A10 10 0 0 1 20 12M-10 6A10 10 0 0 1 10 6M10 6A10 10 0 0 1 30 6" ${st} stroke-width="1"/></svg>`;
+    case 'stars':
+      return open(22,22)+`<path d="M11 3l1.8 6.2L19 11l-6.2 1.8L11 19l-1.8-6.2L3 11l6.2-1.8z" fill="${f}"/><circle cx="0" cy="0" r="1.2" fill="${f}"/><circle cx="22" cy="0" r="1.2" fill="${f}"/><circle cx="0" cy="22" r="1.2" fill="${f}"/><circle cx="22" cy="22" r="1.2" fill="${f}"/></svg>`;
+    default: // dots
+      return open(16,16)+`<circle cx="8" cy="8" r="2.6" ${st} stroke-width="1"/><circle cx="0" cy="0" r="1" fill="${f}"/><circle cx="16" cy="0" r="1" fill="${f}"/><circle cx="0" cy="16" r="1" fill="${f}"/><circle cx="16" cy="16" r="1" fill="${f}"/></svg>`;
+  }
+}
+const tileURL=(kind,f)=>`url('data:image/svg+xml,${encodeURIComponent(tileSVG(kind,f)).replace(/'/g,'%27').replace(/\(/g,'%28').replace(/\)/g,'%29')}')`;
 function spineLook(b){
   const h=strHash(b.id+b.title),w=bookWords(b);
-  return{color:SPINE_FIXED[b.id]||SPINE_COLORS[h%SPINE_COLORS.length],height:200+(h>>5)%34,width:Math.round(34+Math.min(22,Math.max(0,Math.log2(w/15000)*8)))};
+  const foil=FOIL_FIXED[b.id]||FOILS[(h>>>3)%FOILS.length],motif=MOTIF_FIXED[b.id]||MOTIFS[(h>>>7)%MOTIFS.length];
+  return{color:SPINE_FIXED[b.id]||SPINE_COLORS[h%SPINE_COLORS.length],foil,tile:tileURL(motif,foil),height:214+(h>>>5)%34,width:Math.round(34+Math.min(22,Math.max(0,Math.log2(w/15000)*8)))};
 }
+const clothStyle=L=>`--sc:${L.color};--foil:${L.foil};--tile:${L.tile}`;
 function shelfOf(id){const e=store.shelf[id];if(e&&e.status)return e.status;return (store.pos[id]|0)>0?'reading':'want'}
 function setShelf(id,status){
   const e=store.shelf[id]||{};e.status=status;e.at=Date.now();
@@ -1327,8 +1358,8 @@ function lastName(a){if(!a||a==='Your PDF')return'';const parts=a.replace(/\(.*?
 function spineHTML(b,small){
   const L=spineLook(b),st=shelfOf(b.id),pct=pctOf(b);
   const s=small?.66:1;
-  return`<button class="spine${b.id===BOOKID?' cur':''}" data-spine="${esc(b.id)}" style="--sc:${L.color};height:${Math.round(L.height*s)}px;width:${Math.round(L.width*s)}px" aria-label="${esc(b.title)}${b.author?' by '+esc(b.author):''}, ${st==='finished'?'finished':pct?pct+'% read':'not started'}">
-    <span class="band t"></span><span class="stitle">${esc(b.title)}</span>${small?'':`<span class="sauth">${esc(lastName(b.author))}</span>`}<span class="band b"></span>
+  return`<button class="spine${b.id===BOOKID?' cur':''}" data-spine="${esc(b.id)}" style="${clothStyle(L)};height:${Math.round(L.height*s)}px;width:${Math.round(L.width*s)}px" aria-label="${esc(b.title)}${b.author?' by '+esc(b.author):''}, ${st==='finished'?'finished':pct?pct+'% read':'not started'}">
+    <span class="band t"></span><span class="splate"><span class="stitle">${esc(b.title)}</span>${small||b.title.length>18?'':`<span class="sauth">${esc(lastName(b.author))}</span>`}</span><span class="band b"></span>
     ${st==='reading'&&pct>0?`<span class="ribbon" title="${pct}% read"></span>`:''}</button>`;
 }
 function shelfRow(books,small,empty){
@@ -1378,7 +1409,7 @@ function openBookCard(id){
   const ss=store.sessions.filter(s=>(s.book||'trial')===id&&s.w>50),ms=ss.reduce((a,s)=>a+s.ms,0),w=ss.reduce((a,s)=>a+s.w,0);
   const mins=Math.round(ms/60000);
   bookDlg.innerHTML=`<div class="bookcard">
-    <div class="cover" style="--sc:${L.color}"><div class="cvband"></div><div class="cvtitle">${esc(b.title)}</div><div class="cvrule"></div><div class="cvauthor">${esc(b.author||'')}</div><div class="cvmark"><svg class="i"><use href="#i-eye"/></svg></div></div>
+    <div class="cover" style="${clothStyle(L)}"><div class="cvpat"></div><div class="cvplate"><div class="cvtitle">${esc(b.title)}</div><div class="cvrule"></div><div class="cvauthor">${esc(b.author||'')}</div></div><div class="cvmark"><svg class="i"><use href="#i-eye"/></svg></div></div>
     <div class="bcbody">
       <div class="tt">${esc(b.title)}</div><div class="st">${esc(b.author||'')}${b.note?' · '+esc(b.note):''}</div>
       <div class="bcprog"><div class="bar"><i style="width:${pct}%"></i></div><span>${st==='finished'?`Finished${e.finishedAt?' '+new Date(e.finishedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''}`:pct?pct+'% read':'Not started'}</span></div>
@@ -1505,7 +1536,7 @@ function showWelcome(){
     <div><svg class="i"><use href="#i-spark"/></svg><span><b>Help when you need it.</b> A reading guide, word meanings, quick checks and progress tracking.</span></div>
   </div>
   <div class="k">Choose a book to start</div>
-  <div class="ch">${LIB.map((b,k)=>`<button data-book="${b.id}"><span class="bk" style="--c:var(--s${[2,1,7][k]??k});width:34px;height:46px;font-size:16px" aria-hidden="true">${esc(b.title[0])}</span><span><span style="font-family:var(--serif);font-size:17px">${esc(b.title)}</span><br><span style="font:13px var(--ui);color:var(--mute)">${esc(b.author)}${b.note?' · '+esc(b.note):''}</span></span></button>`).join('')}</div>`;
+  <div class="ch">${LIB.map((b,k)=>`<button data-book="${b.id}"><span class="bk cl" style="${clothStyle(spineLook(b))}" aria-hidden="true"><span>${esc(b.title[0])}</span></span><span><span style="font-family:var(--serif);font-size:17px">${esc(b.title)}</span><br><span style="font:13px var(--ui);color:var(--mute)">${esc(b.author)}${b.note?' · '+esc(b.note):''}</span></span></button>`).join('')}</div>`;
   quizEl.insertAdjacentHTML('beforeend','<div class="acts" style="justify-content:center"><button class="btn out" id="wPdf"><svg class="i"><use href="#i-plus"/></svg>Or add your own PDF</button></div>');
   $('wPdf').onclick=()=>{store.seen=true;pickPdf()};
   quizEl.querySelector('.ch').onclick=e=>{const b=e.target.closest('button[data-book]');if(!b)return;store.seen=true;switchBook(b.dataset.book);save(true);closeQuiz()};
