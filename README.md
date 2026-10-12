@@ -2,6 +2,8 @@
 Reading speed and comprehension trainer. Words and short phrases flash one at a time in a fixed spot,
 with speaker cues, word help, a spoiler-safe reading guide, a word bank and progress stats.
 
+**Live:** https://richiesomething.github.io/Fixate/
+
 ## Layout
 | Path | What it is |
 | --- | --- |
@@ -20,9 +22,9 @@ Any static server works, for example:
 Then open http://localhost:8000. The service worker only runs over `http(s)`, not `file://`.
 
 ## Deploy
-Fixate is fully static. Publish the repository root to any static host (GitHub Pages, Netlify,
-Cloudflare Pages, Vercel). Serve it over HTTPS with gzip or brotli turned on; most hosts do both by
-default. When `books/` or `data/` change, bump `VERSION` in `sw.js` so installed copies download the
+Every push to `main` publishes automatically: `.github/workflows/pages.yml` copies the site to the
+`gh-pages` branch, which GitHub Pages serves at the live link above. Fixate is fully static, so any
+other static host works too. When `books/` or `data/` change, bump `VERSION` in `sw.js` so installed copies download the
 new files.
 
 ## Claude artifact version
