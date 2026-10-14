@@ -426,7 +426,7 @@ function go(i,keepPlaying,rw){
   if(rw)noteRewind();
   if(playing&&keepPlaying){clearTimeout(timer);stage.classList.remove('slating');ramp=3;lastT=performance.now();render();if(audioOn())startAudio();else timer=setTimeout(step,delay(idx))}
   else{if(playing)pause();else render();save()}
-  offerReturn();
+  primeAudio();offerReturn();
 }
 /* Auto-bookmark: store.place is the last spot you were actually reading. If you jump well away from it
    (scrubbing, a chapter, a tapped word) a prompt offers to take you straight back. */
@@ -474,7 +474,7 @@ function loadAudio(id){
     const words=ch.reduce((a,c)=>a+(c?c.t.length:0),0),secs=ch.reduce((a,c)=>a+(c?c.end-c.t[0]:0),0);
     const a={id,reader:d.reader,source:d.source,page:d.page,base:d.base,ch,wpm:words/secs*60};
     a.maxWpm=Math.floor(a.wpm*AUD_MAX/25)*25;
-    if(id===BOOKID){AUD=a;applyAudioUI();if(playing&&set.audio){clearTimeout(timer);startAudio()}}
+    if(id===BOOKID){AUD=a;applyAudioUI();if(playing&&set.audio){clearTimeout(timer);startAudio()}else primeAudio()}
     return a;
   })().catch(e=>{delete audioLoads[id];throw e}));
 }
@@ -505,6 +505,11 @@ function audioFailed(){
 audioEl.addEventListener('loadedmetadata',()=>{if(audSeek!=null&&Math.abs(audioEl.currentTime-audSeek)>0.3)audioEl.currentTime=audSeek;audSeek=null});
 audioEl.addEventListener('timeupdate',()=>{if(document.hidden)audioSync()});
 audioEl.addEventListener('error',()=>{if(playing)audioFailed()});
+// dim the word while the narration is buffering, so a slow connection doesn't look like a freeze
+audioEl.addEventListener('waiting',()=>{if(playing&&audioOn())stage.classList.add('buffering')});
+for(const ev of['playing','pause','seeked'])audioEl.addEventListener(ev,()=>stage.classList.remove('buffering'));
+// while paused, have the current spot loaded so play starts at once
+function primeAudio(){if(audioOn()&&!playing&&AUD.ch[chapterOf(idx)])seekAudio(idx)}
 // move the reader to whatever word the narrator is on
 function audioSync(){
   if(!playing||!audioOn()||audCh<0||audioEl.seeking||audSeek!=null)return;

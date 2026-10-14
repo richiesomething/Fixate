@@ -457,3 +457,4 @@ body{overscroll-behavior:none}
 .stage .listen[aria-pressed="true"]{background:color-mix(in srgb,var(--pivot) 16%,var(--surface2));color:var(--pivot)}
 .playing .stage .listen{opacity:0;pointer-events:none}
 .stage.has-audio .hint{padding-right:132px}
+.stage.buffering .word{opacity:.45;transition:opacity .3s var(--ease) .25s}
