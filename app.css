@@ -450,3 +450,10 @@ body{overscroll-behavior:none}
   #sheet{height:calc(100dvh - 8px);max-width:min(640px,calc(100vw - 32px))}
   .quiz{max-height:calc(100dvh - 64px)}
 }
+
+/* read-along audio toggle: top right of the reading area, out of the way while reading */
+.stage .listen{position:absolute;top:4px;right:0;height:36px;font-size:13px;padding:0 14px;z-index:2;transition:opacity .3s var(--ease)}
+.stage .listen svg{width:18px;height:18px}
+.stage .listen[aria-pressed="true"]{background:color-mix(in srgb,var(--pivot) 16%,var(--surface2));color:var(--pivot)}
+.playing .stage .listen{opacity:0;pointer-events:none}
+.stage.has-audio .hint{padding-right:132px}

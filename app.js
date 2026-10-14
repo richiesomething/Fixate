@@ -5,7 +5,7 @@
    <script type="application/json" data-book="<id>"> instead, and those are used when present. */
 const CATALOG=[
   {id:'trial',title:'The Trial',author:'Franz Kafka',note:'tr. David Wyllie',words:83878},
-  {id:'ss',title:'Sense and Sensibility',author:'Jane Austen',note:'1811',words:119490},
+  {id:'ss',title:'Sense and Sensibility',author:'Jane Austen',note:'1811',words:119490,audio:'books/ss.audio.json'},
   {id:'w80',title:'Around the World in Eighty Days',author:'Jules Verne',note:'tr. George M. Towle',words:62384}
 ];
 const LIB=CATALOG.map(b=>({...b}));
@@ -88,7 +88,7 @@ const sceneAt=i=>{let r=null;for(const s of SCENES){if(s.i<=i)r=s;else break}ret
 const DEF={
   view:'flash', widthMode:'auto', width:14, adapt:'0.6', pause:'1', resume:'sentence', chapStop:true,
   theme:'system', font:'serif', size:1, focus:'red', focal:'classic', dim:true,
-  voices:true, aiSpeakers:true, claude:true, before:true, recall:true, coach:true, checks:'choose'
+  voices:true, audio:false, aiSpeakers:true, claude:true, before:true, recall:true, coach:true, checks:'choose'
 };
 const KEY='fixate-trial-v4';
 const FOCAL_KEYS=['classic','mid','center'];
@@ -408,12 +408,13 @@ function play(skipCards){
   if(chapterEnd){chapterEnd=false;idx=nextUnit(idx);if(idx>=N-1)idx=0;hideToast()}
   else if(set.resume==='sentence'&&!movedSincePause){const s=sentStart[sentIdx(idx)];if(idx-s>0)idx=s}
   playing=true;ramp=4;lastT=performance.now();app.classList.add('playing');setIcon();keepAwake(true);
-  syncChunks();render();timer=setTimeout(step,delay(idx));
+  syncChunks();render();
+  if(audioWanted())startAudio();else timer=setTimeout(step,delay(idx));
 }
 function pause(){
   const wasPlaying=playing;
   if(playing){tickClock();lastPauseAt=Date.now()}
-  playing=false;clearTimeout(timer);stage.classList.remove('slating');movedSincePause=false;app.classList.remove('playing');setIcon();keepAwake(false);render();save(true);
+  playing=false;clearTimeout(timer);stopAudio();stage.classList.remove('slating');movedSincePause=false;app.classList.remove('playing');setIcon();keepAwake(false);render();save(true);
 }
 const toggle=()=>playing?pause():play();
 function setIcon(){
@@ -423,7 +424,7 @@ function setIcon(){
 function go(i,keepPlaying,rw){
   idx=unitStart(clamp(i,0,N-1));chapterEnd=false;movedSincePause=true;
   if(rw)noteRewind();
-  if(playing&&keepPlaying){clearTimeout(timer);stage.classList.remove('slating');ramp=3;lastT=performance.now();render();timer=setTimeout(step,delay(idx))}
+  if(playing&&keepPlaying){clearTimeout(timer);stage.classList.remove('slating');ramp=3;lastT=performance.now();render();if(audioOn())startAudio();else timer=setTimeout(step,delay(idx))}
   else{if(playing)pause();else render();save()}
   offerReturn();
 }
@@ -445,9 +446,127 @@ function sentence(dir){
 }
 function chapter(dir){const c=chapterOf(idx)+dir;if(c>=0&&c<chStart.length)go(chStart[c])}
 function setWpm(v,quiet){
-  wpm=clamp(Math.round(v/25)*25,100,1000);normDirty=true;speed.value=wpm;fill(speed);$('wpmVal').textContent=wpm;
+  wpm=clamp(Math.round(v/25)*25,100,audioOn()?AUD.maxWpm:1000);normDirty=true;
+  if(audioOn())audioEl.playbackRate=audioRate();speed.value=wpm;fill(speed);$('wpmVal').textContent=wpm;
   if(set.widthMode==='auto'&&syncChunks())layout();
-  meta();save();
+  meta();save();audioLabel();
+}
+
+/* ================= read-along audio =================
+   Books with an audiobook have a word-level time map (books/<id>.audio.json): for every word in every
+   chapter, the moment the narrator starts saying it, made by aligning the LibriVox recording with this
+   exact text. While read-along is on, the narration is the clock: each flash appears as the narrator
+   reaches its first word, and the reading speed sets the playback rate. */
+const audioEl=new Audio();audioEl.preload='auto';audioEl.preservesPitch=true;
+let AUD=null,audCh=-1,audRAF=0,audSeek=null,audioLoads={};
+const AUD_MIN=0.5,AUD_MAX=3;
+const hasAudio=()=>!!(META&&META.audio);
+const audioOn=()=>!!(set.audio&&AUD&&AUD.id===BOOKID);
+const audioWanted=()=>{if(set.audio&&hasAudio()&&!audioOn())loadAudio(BOOKID);return audioOn()};
+const audioRate=()=>clamp(wpm/AUD.wpm,AUD_MIN,AUD_MAX);
+function loadAudio(id){
+  const lib=LIB.find(b=>b.id===id);if(!lib||!lib.audio)return Promise.resolve(null);
+  return audioLoads[id]||(audioLoads[id]=(async()=>{
+    const el=embedded(`script[data-audio="${id}"]`);
+    const d=JSON.parse(el?el.textContent:await fetchText(lib.audio));
+    // per chapter: start time of each word, stored as differences in hundredths of a second
+    const ch=d.chapters.map(c=>{if(!c)return null;let t=c.t0;const st=new Float64Array(c.d.length);c.d.forEach((x,k)=>{t+=x/100;st[k]=t});return{t:st,end:c.end,file:c.file}});
+    const words=ch.reduce((a,c)=>a+(c?c.t.length:0),0),secs=ch.reduce((a,c)=>a+(c?c.end-c.t[0]:0),0);
+    const a={id,reader:d.reader,source:d.source,page:d.page,base:d.base,ch,wpm:words/secs*60};
+    a.maxWpm=Math.floor(a.wpm*AUD_MAX/25)*25;
+    if(id===BOOKID){AUD=a;applyAudioUI();if(playing&&set.audio){clearTimeout(timer);startAudio()}}
+    return a;
+  })().catch(e=>{delete audioLoads[id];throw e}));
+}
+function seekAudio(i){
+  const c=chapterOf(i),j=i-chStart[c],ch=AUD.ch[c],t=Math.max(0,ch.t[Math.min(j,ch.t.length-1)]-0.05);
+  if(audCh!==c){audCh=c;audSeek=t;audioEl.src=AUD.base+ch.file+'#t='+t.toFixed(2)}
+  else audioEl.currentTime=t;
+}
+function startAudio(){
+  cancelAnimationFrame(audRAF);
+  // a chapter without a time map reads as usual, without audio
+  if(!AUD.ch[chapterOf(idx)]){if(!audioEl.paused)audioEl.pause();clearTimeout(timer);timer=setTimeout(step,delay(idx));return}
+  seekAudio(idx);
+  audioEl.playbackRate=audioRate();
+  const p=audioEl.play();
+  if(p)p.catch(e=>{if(!playing)return;if(e&&e.name==='NotAllowedError'){pause();toast('Tap play to start the audio.')}else audioFailed()});
+  mediaInfo();
+  audRAF=requestAnimationFrame(audioLoop);
+}
+function stopAudio(){cancelAnimationFrame(audRAF);if(!audioEl.paused)audioEl.pause()}
+function audioLoop(){if(!playing||!audioOn())return;audioSync();audRAF=requestAnimationFrame(audioLoop)}
+function audioFailed(){
+  if(!audioOn())return;
+  set.audio=false;applyAudioUI();save();
+  toast('The audiobook could not be played. Reading continues without audio.',[],6000);
+  if(playing){stopAudio();timer=setTimeout(step,delay(idx))}
+}
+audioEl.addEventListener('loadedmetadata',()=>{if(audSeek!=null&&Math.abs(audioEl.currentTime-audSeek)>0.3)audioEl.currentTime=audSeek;audSeek=null});
+audioEl.addEventListener('timeupdate',()=>{if(document.hidden)audioSync()});
+audioEl.addEventListener('error',()=>{if(playing)audioFailed()});
+// move the reader to whatever word the narrator is on
+function audioSync(){
+  if(!playing||!audioOn()||audCh<0||audioEl.seeking||audSeek!=null)return;
+  const c=audCh,ch=AUD.ch[c],t=audioEl.currentTime;
+  if(t>=ch.end||audioEl.ended){
+    advanceTo(chapterEndOf(c));
+    if(c+1>=BOOK.length){chapterEnd=true;pause();return}
+    if(set.chapStop){chapterEnd=true;pause();chapterCheckpoint();return}
+    idx=chStart[c+1];render();startAudio();return;
+  }
+  let lo=0,hi=ch.t.length-1;
+  if(t<ch.t[0])return;
+  while(lo<hi){const m=(lo+hi+1)>>1;if(ch.t[m]<=t+0.03)lo=m;else hi=m-1}
+  const g=chStart[c]+lo;
+  if(unitStart(g)!==idx&&g>idx)advanceTo(g);
+}
+function advanceTo(g){
+  const n=g-idx;
+  if(n>0&&sessOpen){sessOpen.w+=n;sessOpen.tw+=n*curWpm()}
+  tickClock();
+  store.max[BOOKID]=Math.max(store.max[BOOKID]||0,g);checkFinished(g);
+  idx=unitStart(g);store.place[BOOKID]=idx;
+  if(set.widthMode==='auto'&&syncChunks())layout();
+  render();
+  if(performance.now()-lastAutoSave>5000){lastAutoSave=performance.now();save(true)}
+}
+// lock-screen and headphone controls
+function mediaInfo(){
+  if(!('mediaSession' in navigator)||!AUD)return;
+  try{
+    navigator.mediaSession.metadata=new MediaMetadata({title:`${META.title} · ${BOOK[chapterOf(idx)].t}`,artist:META.author,album:`Read by ${AUD.reader} (${AUD.source})`,artwork:[{src:'icons/icon-512.png',sizes:'512x512',type:'image/png'}]});
+    navigator.mediaSession.setActionHandler('play',()=>play(true));
+    navigator.mediaSession.setActionHandler('pause',()=>pause());
+    navigator.mediaSession.setActionHandler('previoustrack',()=>sentence(-1));
+    navigator.mediaSession.setActionHandler('nexttrack',()=>sentence(1));
+  }catch(e){}
+}
+function audioLabel(){
+  const on=audioOn();
+  $('wpmVal').nextElementSibling.textContent=on?`wpm · ${audioRate().toFixed(1)}×`:'wpm';
+}
+function applyAudioUI(){
+  const show=hasAudio(),on=audioOn(),b=$('listenBtn');
+  stage.classList.toggle('has-audio',show);
+  b.hidden=!show;b.setAttribute('aria-pressed',String(!!set.audio&&show));
+  b.querySelector('span').textContent=set.audio&&show?(on?'Listening':'Loading audio…'):'Listen';
+  speed.max=on?AUD.maxWpm:1000;fill(speed);
+  if(on&&wpm>AUD.maxWpm)setWpm(AUD.maxWpm);
+  audioLabel();
+}
+function toggleAudio(){setAudio(!set.audio)}
+function setAudio(on){
+  set.audio=on;save();
+  const wasPlaying=playing;if(wasPlaying)pause();
+  if(set.audio){
+    applyAudioUI();
+    loadAudio(BOOKID).then(a=>{
+      if(!a)return;
+      toast(`Read-along audio, read by ${a.reader} (${a.source}). The narration follows your reading speed, up to ${a.maxWpm} wpm.`,[],6000);
+      if(wasPlaying)play(true);
+    }).catch(()=>{set.audio=false;applyAudioUI();toast('The audiobook could not be loaded. Check your connection.')});
+  }else{applyAudioUI();if(wasPlaying)play(true)}
 }
 
 /* ================= rewind coach ================= */
@@ -1406,7 +1525,7 @@ function openBookCard(id){
   bookDlg.innerHTML=`<div class="bookcard">
     <div class="cover" style="${clothStyle(L)}"><div class="cvpat"></div><div class="cvplate"><div class="cvtitle">${esc(b.title)}</div><div class="cvrule"></div><div class="cvauthor">${esc(b.author||'')}</div></div><div class="cvmark"><svg class="i"><use href="#i-eye"/></svg></div></div>
     <div class="bcbody">
-      <div class="tt">${esc(b.title)}</div><div class="st">${esc(b.author||'')}${b.note?' · '+esc(b.note):''}</div>
+      <div class="tt">${esc(b.title)}</div><div class="st">${esc(b.author||'')}${b.note?' · '+esc(b.note):''}</div>${b.audio?'<div class="st">Read-along audiobook available</div>':''}
       <div class="bcprog"><div class="bar"><i style="width:${pct}%"></i></div><span>${st==='finished'?`Finished${e.finishedAt?' '+new Date(e.finishedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''}`:pct?pct+'% read':'Not started'}</span></div>
       ${mins?`<div class="st">${mins<60?mins+' min':Math.floor(mins/60)+' h '+mins%60+' min'} reading${ms>60000?` · about ${Math.round(w/(ms/60000))} wpm`:''}</div>`:''}
       <div class="seg" id="bcShelf" role="group" aria-label="Shelf">${SHELVES.map(([k,label])=>`<button data-v="${k}" aria-pressed="${k===st}">${label.replace(' now','')}</button>`).join('')}</div>
@@ -1519,6 +1638,7 @@ async function switchBook(id){
   if(store.place[id]==null&&idx>0)store.place[id]=idx;
   scrub.max=N-1;pgFrom=-1;pgTo=-1;lastWho=null;lastPlace=null;chapterEnd=false;lastQuizIdx=0;rewinds=[];
   sessOpen=null;
+  stopAudio();audCh=-1;AUD=null;if(set.audio&&hasAudio())loadAudio(id);applyAudioUI();
   setHeader();drawChapters();syncChunks();layout();save(true);
   if(idx>0&&idx<N-1)toast(`Picking up in ${BOOK[chapterOf(idx)].t}, ${Math.round(idx/(N-1)*100)}% in.`,[],4000);
 }
@@ -1583,6 +1703,7 @@ function bindControls(root,specs,rerender){
   });
 }
 function changed(k){
+  if(k==='audio')return setAudio(set.audio);
   applySettings();save();
 }
 const wFmt=v=>+v===0?'One word':`${v} characters`;
@@ -1599,6 +1720,7 @@ const SETTINGS=[
   {k:'width',type:'range',label:'Chunk width',min:0,max:36,step:1,fmt:wFmt,show:()=>set.widthMode==='manual',live:()=>{const p=$('preview');if(p)p.parentElement.outerHTML=previewHTML()}},
   {type:'html',html:previewHTML},
   {k:'adapt',type:'seg',label:'Adaptive timing',opts:[['0','Off'],['0.6','Gentle'],['1','Full']],desc:'Gives hard passages more time and easy ones less, while the book as a whole runs at your set speed.'},
+  {k:'audio',type:'toggle',label:'Read-along audio',desc:'Hear the audiobook while the words flash, in step with the narrator. The narration speeds up or slows down with your reading speed.',show:()=>hasAudio()},
   {k:'voices',type:'toggle',label:'Speaker cues',desc:'Each character\'s words take on their own colour, with a short pause when someone new starts talking.'},
   {k:'checks',type:'seg',label:'After each chapter',opts:[['off','Off'],['choose','Ask me'],['summary','Summary'],['question','Question']],desc:'Summarise the chapter in your own words or answer one question. Writing your own summary first builds the strongest memory.',show:()=>!!AI()},
   {type:'grp',label:'Look'},
@@ -1709,7 +1831,8 @@ document.addEventListener('keydown',e=>{
   else if(k==='[')chapter(-1);else if(k===']')chapter(1);
   else if(k==='p'||k==='P'){set.view=set.view==='page'?'flash':'page';applySettings();save()}
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden){if(playing)pause();else save(true)}});
+// with read-along audio, the book keeps playing in the background like an audiobook
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(playing&&!audioOn())pause();else save(true)}else if(playing){keepAwake(true);render()}});
 // phones may discard a background tab without warning, so write progress out whenever the page goes away
 addEventListener('pagehide',()=>save(true));
 
@@ -1735,6 +1858,9 @@ window.addEventListener('resize',()=>{pgLastTop=-1;layout()});
 
 scrub.max=N-1;setHeader();drawChapters();updateBadge();
 speed.value=wpm;fill(speed);$('wpmVal').textContent=wpm;
+$('listenBtn').onclick=e=>{e.stopPropagation();toggleAudio()};
+if(set.audio&&hasAudio())loadAudio(BOOKID).catch(()=>{});
+applyAudioUI();
 applySettings();
 if(store.place[BOOKID]==null&&idx>0)store.place[BOOKID]=idx;
 if(!store.seen)showWelcome();

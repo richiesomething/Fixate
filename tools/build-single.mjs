@@ -22,6 +22,7 @@ let html = read('index.html')
   .replace(/<link rel="stylesheet" href="app.css">/, () => `<style>\n${read('app.css')}</style>`);
 
 const data = catalog.map(id => `<script type="application/json" data-book="${id}">${safe(read(`books/${id}.json`))}</script>`)
+  .concat(catalog.filter(id => fs.existsSync(path.join(root, `books/${id}.audio.json`))).map(id => `<script type="application/json" data-audio="${id}">${safe(read(`books/${id}.audio.json`))}</script>`))
   .concat(`<script type="text/plain" id="freqdata">${safe(read('data/freq.txt'))}</script>`,
           `<script type="application/json" id="gendict">${safe(read('data/gendict.json'))}</script>`)
   .join('\n');
