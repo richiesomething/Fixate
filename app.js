@@ -6,7 +6,8 @@
 const CATALOG=[
   {id:'trial',title:'The Trial',author:'Franz Kafka',note:'tr. David Wyllie',words:83878},
   {id:'ss',title:'Sense and Sensibility',author:'Jane Austen',note:'1811',words:119490,audio:'books/ss.audio.json'},
-  {id:'w80',title:'Around the World in Eighty Days',author:'Jules Verne',note:'tr. George M. Towle',words:62384}
+  {id:'w80',title:'Around the World in Eighty Days',author:'Jules Verne',note:'tr. George M. Towle',words:62384},
+  {id:'tl',title:'Twenty Thousand Leagues under the Sea',author:'Jules Verne',note:'1870',words:104181}
 ];
 const LIB=CATALOG.map(b=>({...b}));
 const embedded=sel=>document.querySelector(sel);
@@ -842,6 +843,58 @@ function journeyHTML(){
 /* ---- Sense and Sensibility: England map, money ledger, family tree ----
    All three are drawn only up to the reader's furthest point (maxRead): each fact carries the index of
    the word after which the book has revealed it. */
+/* ---- Twenty Thousand Leagues: the voyage, the depths and the Nautilus ---- */
+function voyageHTML(){
+  const g=GUIDE.voyage,m=maxRead(),stops=g.route.filter(r=>r[3]<=m);
+  if(!stops.length)return'';
+  const cur=stops[stops.length-1];
+  // split a leg into runs, wrapping across the map edge when the short way round is over the side
+  const runs=a=>{const out=[[]];a.forEach((r,k)=>{const p=a[k-1];if(p&&Math.abs(r[1]-p[1])>g.w/2){const d=r[1]>p[1]?-g.w:g.w,t=(d<0?p[1]:g.w-p[1])/Math.abs(r[1]+d-p[1]),y=(p[2]+(r[2]-p[2])*t).toFixed(1);out[out.length-1].push([0,d<0?0:g.w,y]);out.push([[0,d<0?g.w:0,y]])}out[out.length-1].push(r)});return out.filter(x=>x.length>1).map(x=>x.map(r=>r[1]+','+r[2]).join(' '))};
+  const ship=stops.filter(r=>r[4]==='ship'),sub=stops.filter(r=>r[4]==='nautilus');
+  const lg=(g.leagues||[]).filter(x=>x[0]<=m),last=lg[lg.length-1];
+  const land=`<path d="${g.land}" fill="var(--surface2)" stroke="var(--rule)" stroke-width=".3"/>`;
+  return`<section class="gsec"><h4>The voyage</h4><div class="journey voy"><svg viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="World map of the voyage so far; now at ${esc(cur[0])}">
+    ${land}<g transform="translate(360,0)">${land}</g>
+    ${runs(ship).map(p=>`<polyline points="${p}" fill="none" stroke="var(--mute)" stroke-width=".8" stroke-dasharray="2 2"/>`).join('')}
+    ${runs(sub).map(p=>`<polyline points="${p}" fill="none" stroke="var(--focal)" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
+    ${stops.slice(0,-1).map(r=>`<circle cx="${r[1]}" cy="${r[2]}" r="1.3" fill="${r[4]==='ship'?'var(--mute)':'var(--focal)'}"/>`).join('')}
+    <circle cx="${cur[1]}" cy="${cur[2]}" r="5" fill="var(--focal)" opacity=".22"/><circle cx="${cur[1]}" cy="${cur[2]}" r="2.4" fill="var(--focal)"/>
+    <text x="${cur[1]>g.w-70?cur[1]-5:cur[1]+5}" y="${cur[2]<12?cur[2]+11:cur[2]-5}" text-anchor="${cur[1]>g.w-70?'end':'start'}" class="now">${esc(cur[0])}</text>
+  </svg>
+  ${last?`<div class="leagues"><div class="lh"><b>${last[1].toLocaleString('en-GB')} leagues</b><span>of 20,000</span></div><div class="bar"><i style="width:${Math.min(100,last[1]/200)}%"></i></div><div class="st">“${esc(last[2])}”</div></div>`:''}
+  <div class="gcard"><div class="gtitle">${esc(cur[0])}</div><div class="sumtext">${esc(cur[5])}</div>${cur[6]?`<div class="ctxnote">“${esc(cur[6])}”</div>`:''}
+    <details><summary>Places so far (${stops.length})</summary><ol class="wl">${stops.map(r=>`<li><b>${esc(r[0])}</b> ${esc(r[5])}</li>`).join('')}</ol></details>
+    <p class="st">Dashed line: the frigate’s search. Red line: the Nautilus.</p></div></div></section>`;
+}
+function depthsHTML(){
+  const m=maxRead(),ds=GUIDE.depths.filter(x=>x[0]<=m);
+  if(!ds.length)return'';
+  const top=Math.max(...ds.map(x=>x[1]));
+  return`<section class="gsec"><h4>How deep they have been</h4><div class="gcard">
+    <div class="sumtext">Each depth the book gives, converted to metres from the text’s yards, feet and fathoms.</div>
+    <div class="bars" role="list">${ds.map(x=>`<div class="barrow" role="listitem" aria-label="${esc(x[4])}: ${x[1].toLocaleString('en-GB')} metres"><span class="bl">${esc(x[4])}</span><span class="bt"><i style="width:${(x[1]/top*100).toFixed(1)}%;min-width:8px"></i></span><span class="bv">${x[1].toLocaleString('en-GB')} m</span></div>`).join('')}</div>
+    <details><summary>What the book says</summary><ul class="wl">${ds.map(x=>`<li><b>${esc(x[4])}</b> “${esc(x[2])}” <i>${esc(x[3])}</i></li>`).join('')}</ul></details>
+  </div></section>`;
+}
+function vesselHTML(){
+  const m=maxRead(),vs=GUIDE.vessel.filter(x=>x[0]<=m);
+  if(!vs.length)return'';
+  const has=l=>vs.some(x=>x[1]===l),later=GUIDE.vessel.length-vs.length;
+  return`<section class="gsec"><h4>The Nautilus</h4><div class="gcard">
+    <svg class="sub" viewBox="0 0 320 96" role="img" aria-label="Side view of the Nautilus">
+      <path d="M22 50C60 26 252 26 292 50 252 74 60 74 22 50Z" fill="var(--surface2)" stroke="var(--ink)" stroke-width="1.2"/>
+      <path d="M292 50l20-1.5-20 3" fill="var(--ink)" stroke="var(--ink)" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M14 42v16M22 46l-8-4M22 54l-8 4" stroke="var(--ink)" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <rect x="132" y="28" width="56" height="7" rx="3" fill="var(--surface2)" stroke="var(--ink)" stroke-width="1"/>
+      <path d="M232 33l9-7h9l-3 8" fill="var(--surface2)" stroke="var(--ink)" stroke-width="1" stroke-linejoin="round"/>
+      ${[120,140,160,180,200].map(x=>`<circle cx="${x}" cy="50" r="3.2" fill="var(--focal)" opacity=".55"/>`).join('')}
+      ${has('Length')?`<path d="M22 84H292M22 80v8M292 80v8" stroke="var(--mute)" stroke-width=".8"/><text x="157" y="81" class="dim">232 feet</text>`:''}
+      ${has('Breadth')?`<path d="M304 32V68M300 32h8M300 68h8" stroke="var(--mute)" stroke-width=".8"/><text x="300" y="20" class="dim">26 ft</text>`:''}
+    </svg>
+    <dl class="facts">${vs.map(x=>`<div><dt>${esc(x[1])}</dt><dd>${esc(x[2])}${x[3]?`<span class="st"> · ${esc(x[3])}</span>`:''}</dd></div>`).join('')}</dl>
+    ${later?`<p class="st">Captain Nemo reveals more about his ship later in the book.</p>`:''}
+  </div></section>`;
+}
 function englandHTML(){
   const g=GUIDE.england,m=maxRead();
   const stops=g.route.filter(r=>r[3]<=m);if(!stops.length)return'';
@@ -952,7 +1005,7 @@ function renderGuide(){
   const story=GUIDE.chapters.map((x,k)=>({k,x})).filter(({k})=>k<c||(k===c&&done));
   const places=[];const seenP=new Set();SCENES.filter(x=>x.i<=maxRead()).forEach(x=>{const k=x.l.trim();if(!seenP.has(k)&&GUIDE.places[x.l]){seenP.add(k);places.push(x)}});
   box.innerHTML=`
-  ${GUIDE.map?journeyHTML():''}${GUIDE.england?englandHTML():''}
+  ${GUIDE.map?journeyHTML():''}${GUIDE.england?englandHTML():''}${GUIDE.voyage?voyageHTML():''}
   <section class="gsec now"><h4>Right now</h4>
     <div class="gcard">
       <div class="gtitle">${esc(BOOK[c].t)}${sc?` · ${esc(sc.l)}`:''}</div>
@@ -969,7 +1022,7 @@ function renderGuide(){
   ${(()=>{const st=story.filter(({k})=>k!==c);if(!st.length)return'';const recent=st.slice(-3),older=st.slice(0,-3);
     const li=({k,x})=>`<li value="${k+1}"><b>${esc(BOOK[k].t)}</b> ${esc(x.sum)}</li>`;
     return`<section class="gsec"><h4>The story so far</h4><div class="gcard">${older.length?`<details><summary>Earlier chapters (${older.length})</summary><ol class="story">${older.map(li).join('')}</ol></details>`:''}<ol class="story">${recent.map(li).join('')}</ol></div></section>`})()}
-  ${GUIDE.ledger?ledgerHTML():''}${GUIDE.letters?lettersHTML():''}
+  ${GUIDE.ledger?ledgerHTML():''}${GUIDE.letters?lettersHTML():''}${GUIDE.depths?depthsHTML():''}${GUIDE.vessel?vesselHTML():''}
   ${notes.length?`<section class="gsec"><h4>Background and context</h4><div class="gcard">${notes.map(([k,t,x])=>`<details${k===c?' open':''}><summary>${esc(t)}</summary><div class="sumtext">${esc(x)}</div></details>`).join('')}</div></section>`:''}
   ${places.length?`<section class="gsec"><h4>Places so far</h4><div class="gcard">${places.map(x=>`<details><summary>${esc(x.l)}</summary><div class="sumtext">${esc(GUIDE.places[x.l].desc)}</div>${GUIDE.places[x.l].ctx?`<div class="ctxnote">${esc(GUIDE.places[x.l].ctx)}</div>`:''}</details>`).join('')}</div></section>`:''}
   <p class="note">Everything here covers only what you have read, except the chapter summary when you choose to reveal it.</p>`;
@@ -1569,16 +1622,16 @@ function addRelation(a,b,label,c){
    reading automatically (starting a book moves it to Reading, reaching the end moves it to Finished),
    and you can move books yourself. Spines are drawn from each book's title and length. */
 const SPINE_COLORS=['#2F3A56','#6E2A2F','#2F5446','#7A5A22','#5A3460','#245E63','#6B4A34','#41474F','#8A3B2B','#33506E'];
-const SPINE_FIXED={trial:'#2B303B',ss:'#6E2A35',w80:'#2F5A44'};
+const SPINE_FIXED={trial:'#2B303B',ss:'#6E2A35',w80:'#2F5A44',tl:'#1D4650'};
 const SHELVES=[['reading','Reading now'],['want','Want to read'],['finished','Finished']];
 function strHash(s){let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619)>>>0;return h}
 function bookWords(b){return (cache[b.id]&&cache[b.id].N)||b.words||60000}
 /* Cloth-bound look: every book gets a cloth colour, a foil colour and a repeating foil pattern, drawn
    here from scratch (no artwork is downloaded). The built-in books have a pattern drawn for their
    story; other books get one of the generic patterns, chosen from the title. */
-const FOIL_FIXED={trial:'#D9C48E',ss:'#EBD6B4',w80:'#E4C96F'};
+const FOIL_FIXED={trial:'#D9C48E',ss:'#EBD6B4',w80:'#E4C96F',tl:'#CFDCC8'};
 const FOILS=['#D9C48E','#EBD6B4','#CFDCC8','#E3BC8C'];
-const MOTIF_FIXED={trial:'keys',ss:'leaves',w80:'clocks'};
+const MOTIF_FIXED={trial:'keys',ss:'leaves',w80:'clocks',tl:'waves'};
 const MOTIFS=['lattice','scales','stars','dots'];
 function tileSVG(kind,f){
   const open=(w,h)=>`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
@@ -1591,6 +1644,8 @@ function tileSVG(kind,f){
       return open(28,30)+`<g ${st} stroke-width="1.2"><path d="M14 26C7 20 7 10 14 4c7 6 7 16 0 22z"/><path d="M14 26V8" stroke-width=".8"/><path d="M14 17q-4-1-6-5M14 17q4-1 6-5" stroke-width=".8"/></g><g fill="${f}"><circle cx="0" cy="0" r="2"/><circle cx="28" cy="0" r="2"/><circle cx="0" cy="30" r="2"/><circle cx="28" cy="30" r="2"/><circle cx="14" cy="1" r="1"/></g></svg>`;
     case 'clocks': // dials showing different times, for Around the World in Eighty Days
       return open(30,30)+`<g ${st}><circle cx="15" cy="15" r="9.5" stroke-width="1.2"/><path d="M15 6.5v2M15 21.5v2M6.5 15h2M21.5 15h2M15 15V9.5M15 15l4.4 2.6" stroke-width="1.3"/></g><circle cx="15" cy="15" r="1.1" fill="${f}"/>${[[0,0],[30,0],[0,30],[30,30]].map(([x,y],k)=>`<g transform="translate(${x} ${y}) rotate(${k*70})" ${st} stroke-width=".9"><circle r="3.6"/><path d="M0 0v-2.5M0 0l1.8.8"/></g>`).join('')}</svg>`;
+    case 'waves': // rolling waves with a small spiral shell, for Twenty Thousand Leagues under the Sea
+      return open(28,24)+`<g ${st} stroke-width="1.2"><path d="M-2 8q5-6 10 0t10 0 10 0 10 0M-2 20q5-6 10 0t10 0 10 0 10 0" stroke-width="1"/></g><g ${st} stroke-width=".9"><path d="M14 14.6a1.4 1.4 0 1 1 1.6-1.4 2.6 2.6 0 1 1-3.2 2.6"/></g></svg>`;
     case 'lattice':
       return open(20,20)+`<path d="M10 0L20 10 10 20 0 10z" ${st} stroke-width="1"/><circle cx="10" cy="10" r="1.4" fill="${f}"/><circle cx="0" cy="0" r="1" fill="${f}"/><circle cx="20" cy="0" r="1" fill="${f}"/><circle cx="0" cy="20" r="1" fill="${f}"/><circle cx="20" cy="20" r="1" fill="${f}"/></svg>`;
     case 'scales':
@@ -1671,7 +1726,7 @@ function openBookCard(id){
   const ss=store.sessions.filter(s=>(s.book||'trial')===id&&s.w>50),ms=ss.reduce((a,s)=>a+s.ms,0),w=ss.reduce((a,s)=>a+s.w,0);
   const mins=Math.round(ms/60000);
   bookDlg.innerHTML=`<div class="bookcard">
-    <div class="cover" style="${clothStyle(L)}"><div class="cvpat"></div><div class="cvplate"><div class="cvtitle">${esc(b.title)}</div><div class="cvrule"></div><div class="cvauthor">${esc(b.author||'')}</div></div><div class="cvmark"><svg class="i"><use href="#i-eye"/></svg></div></div>
+    <div class="cover" style="${clothStyle(L)}"><div class="cvpat"></div><div class="cvplate"><div class="cvtitle${b.title.length>28?' long':''}">${esc(b.title)}</div><div class="cvrule"></div><div class="cvauthor">${esc(b.author||'')}</div></div><div class="cvmark"><svg class="i"><use href="#i-eye"/></svg></div></div>
     <div class="bcbody">
       <div class="tt">${esc(b.title)}</div><div class="st">${esc(b.author||'')}${b.note?' · '+esc(b.note):''}</div>${b.audio?'<div class="st">Read-along audiobook available</div>':''}
       <div class="bcprog"><div class="bar"><i style="width:${pct}%"></i></div><span>${st==='finished'?`Finished${e.finishedAt?' '+new Date(e.finishedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''}`:pct?pct+'% read':'Not started'}</span></div>

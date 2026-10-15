@@ -10,6 +10,7 @@ with speaker cues, word help, a spoiler-safe reading guide, a word bank and prog
 | `index.html`, `app.css`, `app.js` | The app shell (about 50 KB gzipped). |
 | `books/<id>.json` | Text and annotations for each built-in book, fetched only when that book is opened. |
 | `books/ss.json` → `guide.england`, `guide.ledger`, `guide.tree`, `guide.letters` | The *Sense and Sensibility* England map, money ledger, family tree and the six letters quoted in full, built by `tools/ss-extras/build_extras.py`; every fact is tied to the word where the book reveals it. |
+| `books/tl.json` → `guide.voyage`, `guide.depths`, `guide.vessel` | *Twenty Thousand Leagues under the Sea*: the voyage on a world map with a leagues counter, the depths reached, and a Nautilus spec sheet. Built from Project Gutenberg #164 by `tools/tl/` (see its README); each place, depth and fact appears only once the reader reaches it. |
 | `books/ss.audio.json` | Word-by-word time map for the *Sense and Sensibility* audiobook (LibriVox, read by Elizabeth Klett); see `tools/audio/`. |
 | `data/freq.txt`, `data/gendict.json` | Word frequencies and dictionary, fetched only when someone adds a PDF. |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline support and home-screen install. |

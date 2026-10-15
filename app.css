@@ -385,6 +385,7 @@ details .sumtext,details .ctxnote{margin-top:8px}
 .cvpat{position:absolute;inset:14px 12px 14px 20px;background:var(--tile) center/auto;opacity:.85;border:1px solid color-mix(in srgb,var(--foil) 80%,transparent);outline:1px solid color-mix(in srgb,var(--foil) 45%,transparent);outline-offset:3px}
 .cvplate{position:absolute;left:30px;right:22px;top:36px;background:var(--sc);border:1px solid color-mix(in srgb,var(--foil) 80%,transparent);padding:14px 8px 12px;box-shadow:0 0 0 5px var(--sc)}
 .cvtitle{font-family:var(--serif);font-weight:600;font-size:16px;line-height:1.22;letter-spacing:.05em;text-transform:uppercase;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.cvtitle.long{font-size:12.5px;letter-spacing:.03em;-webkit-line-clamp:6}
 .cvrule{width:28px;height:1px;background:var(--foil);margin:9px auto}
 .cvauthor{font-family:var(--serif);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.92}
 .cvmark{position:absolute;left:calc(50% + 4px);bottom:30px;transform:translateX(-50%);background:var(--sc);border-radius:50%;padding:5px;box-shadow:0 0 0 4px var(--sc);display:grid;place-items:center}.cvmark svg{width:22px;height:22px}
@@ -454,6 +455,7 @@ body{overscroll-behavior:none}
 /* read-along audio toggle: top right of the reading area, out of the way while reading */
 .stage .listen{position:absolute;top:4px;right:0;height:36px;font-size:13px;padding:0 14px;z-index:2;transition:opacity .3s var(--ease)}
 .stage .listen svg{width:18px;height:18px}
+.stage .listen[hidden]{display:none}
 .stage .listen[aria-pressed="true"]{background:color-mix(in srgb,var(--pivot) 16%,var(--surface2));color:var(--pivot)}
 .playing .stage .listen{opacity:0;pointer-events:none}
 .stage.has-audio .hint{padding-right:132px}
@@ -500,3 +502,18 @@ body{overscroll-behavior:none}
 .ltag{position:absolute;left:0;right:0;bottom:12px;text-align:center;font:italic 13px var(--serif);color:var(--mute);pointer-events:none;opacity:0;transition:opacity .3s var(--ease)}
 .stage.in-letter .ltag{opacity:.9}
 .context span.inl{font-style:italic}
+
+/* Twenty Thousand Leagues extras */
+.journey.voy svg{font-family:var(--serif)}
+.journey.voy .now{font-size:8px;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:2.5px}
+.leagues{display:grid;gap:6px;padding:4px 6px 8px}
+.leagues .lh{display:flex;align-items:baseline;gap:8px;font-family:var(--serif)}
+.leagues .lh b{font-size:19px;font-weight:600;color:var(--ink)}
+.leagues .lh span{font:13px var(--ui);color:var(--mute)}
+.gcard svg.sub{width:100%;height:auto;display:block;font-family:var(--serif)}
+.gcard svg.sub .dim{font-size:9px;fill:var(--mute);text-anchor:middle}
+.facts{margin:0;display:grid;gap:8px}
+.facts div{display:grid;grid-template-columns:6.5em minmax(0,1fr);gap:10px;font-size:14px;line-height:1.45}
+.facts dt{color:var(--mute);font-size:12.5px;font-weight:600;padding-top:1px}
+.facts dd{margin:0;font-family:var(--serif);color:var(--ink)}
+.facts dd .st{display:inline;font-family:var(--ui)}
