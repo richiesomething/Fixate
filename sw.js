@@ -5,7 +5,7 @@
      offline. They never change for a given VERSION.
    - Google Fonts and pdf.js are cached on first use.
    Bump VERSION whenever books/ or data/ change; shell files update themselves. */
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHELL = `fixate-shell-${VERSION}`;
 const DATA = `fixate-data-${VERSION}`;
 const EXTERNAL = 'fixate-external-v1';

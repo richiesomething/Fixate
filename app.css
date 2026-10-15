@@ -530,3 +530,9 @@ body{overscroll-behavior:none}
 .tkey{display:flex;gap:16px;margin-top:8px}
 .tkey span{display:inline-flex;align-items:center;gap:6px}
 .tkey i{width:16px}
+
+/* license notice for books that need one */
+.rights{font-size:11.5px;line-height:1.45;color:var(--mute);margin-top:10px}
+.rights a{color:inherit;text-decoration:underline}
+.list li.rightsli{list-style:none;display:block;padding:6px 4px 14px}
+.list li.rightsli .rights{display:block;margin:0}

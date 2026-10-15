@@ -1,5 +1,5 @@
 import json, re, bisect, sys
-d = json.load(open('labelled.json'))
+d = json.load(open('annotated.json'))
 W, CH = [], []
 for ci, c in enumerate(d['chs']):
     for p in c['p']:

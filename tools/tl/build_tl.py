@@ -1,13 +1,14 @@
-# Builds books/tl.json (Twenty Thousand Leagues under the Sea) from the parsed, annotated and
-# hand-labelled chapters, plus the reading guide and the book's own extras: the voyage map with the
+# Builds books/tl.json (Twenty Thousand Leagues Under the Seas, tr. F. P. Walter) from the parsed and
+# annotated chapters, plus the reading guide and the book's own extras: the voyage map with the
 # leagues travelled, the depths reached and the Nautilus fact card. Every anchor is found by searching
 # the text itself, so each fact appears only once the reader has reached it.
 import json, math, re, sys
 from tfind import find, W, CH
 
-d = json.load(open('labelled.json'))
-chs, spk = d['chs'], d['spk']
-chs[21]['s'] = '“Ægri Somnia”'
+d = json.load(open('annotated.json'))
+chs = d['chs']
+for c in chs: c['r'] = [[] for _ in c['p']]  # speaker cues are no longer used; the cast comes from the map below
+spk = ['Professor Aronnax', 'Conseil', 'Ned Land', 'Captain Nemo', 'Commander Farragut', 'The crew']
 N = len(W)
 
 def at(pat, ch=1, n=0):
@@ -50,13 +51,15 @@ G = [
  ("Hunger and confinement test Ned's temper.",
   "They wake hungry and short of air as the vessel surfaces to breathe. When the steward finally comes, Ned leaps at his throat, and a voice suddenly addresses them in perfect French."),
  ("Meet the commander of the submarine, and hear his terms.",
-  "The commander says he has broken with humanity and its laws. They may move freely on board but may never leave, since they know his secret. He names himself Captain Nemo and shows Aronnax his ship: a library of 12,000 books, a saloon of paintings and a museum of marine treasures."),
+  "The commander says he has broken with humanity and its laws. They may move freely on board but may never leave, since they know his secret. He names himself Captain Nemo, serves Aronnax a breakfast made entirely from the sea, and speaks of his love for the ocean."),
+ ("A tour of the Nautilus begins.",
+  "Nemo shows Aronnax his ship: a library of 12,000 books, a lounge with masterpieces of painting, sheet music and a piano-organ, and a museum of shells, corals and pearls gathered from every sea."),
  ("How does the Nautilus work? Nemo explains.",
   "Nemo shows his instruments and explains that the Nautilus runs entirely on electricity, made with elements drawn from sea water. It lights, heats and drives the ship at up to fifty miles an hour, and serves a small boat stowed in the hull."),
  ("The vessel's measurements, and some of its secrets.",
-  "Nemo describes the Nautilus: 232 feet long, 26 feet wide, 1,500 tons, with a double hull and tanks that let it dive and rise. He built it in secret on a desert island from parts ordered all over the world. Its collision with the Scotia was an accident."),
+  "Nemo describes the Nautilus: 70 metres long, 8 metres wide, 1,500 metric tons, with a double hull and tanks that let it dive and rise. He built it in secret on a desert island from parts ordered all over the world. Its collision with the Scotia was an accident."),
  ("The voyage proper begins near Japan. Watch the ocean through the saloon windows.",
-  "The Nautilus takes its bearings off Japan and follows the Kuro-Scivo, a warm current Aronnax calls the Black River. The saloon panels open on the lit sea, and Ned and Conseil share Aronnax's wonder at the life outside."),
+  "The Nautilus takes its bearings off Japan and follows the Kuroshio, the warm Black Current. The lounge panels open on the lit sea, and Ned and Conseil share Aronnax's wonder at the life outside."),
  ("Nemo invites them hunting. Where, and how?",
   "Nemo invites them to hunt in the forests of Crespo Island. Ned hopes for dry land, but the forests are under the sea. Nemo explains the diving apparatus and the air-guns with electric bullets that make the trip possible."),
  ("Aronnax walks on the sea floor for the first time.",
@@ -68,7 +71,7 @@ G = [
  ("A famous lost expedition, and the place where it ended.",
   "After the Tuamotu Islands, the Nautilus reaches Vanikoro, where the French explorer La Pérouse was wrecked. Nemo reveals that he found the last wreck and La Pérouse's papers, and says he hopes he and his men will lie in a coral grave like his."),
  ("A strait full of reefs.",
-  "Crossing the reef-strewn Torres Strait, the Nautilus runs aground near the island of Gilboa. Nemo calmly waits for the full-moon tide, and Aronnax gets permission for the three of them to go ashore meanwhile."),
+  "Crossing the reef-strewn Torres Strait, the Nautilus runs aground near Gueboroa Island. Nemo calmly waits for the full-moon tide, and Aronnax gets permission for the three of them to go ashore meanwhile."),
  ("On land for the first time in months. Notice what Ned is after.",
   "On the island they gather coconuts and bread-fruit, shoot pigeons, a bird of paradise and a wild pig, and feast. As they talk about not going back, a stone lands at their feet."),
  ("Islanders on the shore. How will Nemo respond?",
@@ -80,7 +83,7 @@ G = [
  ("Part Two opens in the Indian Ocean. A strange sea at night.",
   "Aronnax reflects on Nemo's hatred of mankind. The Nautilus crosses the Indian Ocean past Keeling Island, and one night passes through a “milk sea” whitened by countless tiny glowing creatures."),
  ("Nemo invites them to a pearl fishery. And mentions sharks.",
-  "Near Ceylon, Nemo invites them to visit the pearl banks of Manaar and casually asks if they fear sharks. Aronnax explains to his friends how pearls form, while trying to hide his own nerves."),
+  "Near Ceylon, Nemo invites them to visit the pearl fisheries in the Gulf of Mannar and casually asks if they fear sharks. Aronnax explains to his friends how pearls form, while trying to hide his own nerves."),
  ("On the pearl bank. Watch Nemo with a poor diver.",
   "On the sea floor Nemo shows them a gigantic oyster with a priceless pearl he is letting grow. They watch a poor Indian pearl-diver at work. When a shark attacks him, Nemo fights it with a dagger, Ned kills it with his harpoon, and Nemo revives the diver and gives him a bag of pearls."),
  ("The Red Sea, and where Nemo means to go next.",
@@ -98,9 +101,9 @@ G = [
  ("A hidden harbour, and how the Nautilus refuels.",
   "The Nautilus surfaces inside the crater of an extinct volcano, reached by an undersea tunnel. Here Nemo's men mine coal for the ship's power. The three friends explore the crater; Ned finds honey and dreams of escape."),
  ("A sea of weed, then a record-breaking dive.",
-  "The Nautilus crosses the still, weed-choked Sargasso Sea and heads far south. In the South Atlantic it dives to an astonishing 16,000 yards, and Nemo photographs the sea floor."),
+  "The Nautilus crosses the still, weed-choked Sargasso Sea and heads far south. In the South Atlantic it dives to an astonishing 16,000 metres, and Nemo photographs the sea floor."),
  ("Ned sees whales. What does Nemo think of hunting?",
-  "Ned longs to hunt the southern whales, but Nemo refuses to kill for nothing. When savage cachalots attack the whales, Nemo drives the Nautilus's steel spur through them in a bloody massacre. Ned calls it butchery, and his resentment of Nemo grows."),
+  "Ned longs to hunt the southern whales, but Nemo refuses to kill for nothing. When savage sperm whales attack the baleen whales, Nemo drives the Nautilus's steel spur through them in a bloody massacre. Ned calls it butchery, and his resentment of Nemo grows."),
  ("Ice everywhere, and a goal no one has reached.",
   "Heading south, the Nautilus is surrounded by ice. Nemo announces he will reach the South Pole by passing under the ice barrier, reasoning that there is open sea beyond. After a long passage beneath it, he appears at dawn: “The sea is open!”"),
  ("Will they reach the pole? Watch the sky.",
@@ -111,8 +114,8 @@ G = [
   "With air for only two days, crew and prisoners take turns digging through the ice in diving suits, while Nemo uses jets of boiling water to stop the sea freezing round the hull. As the air runs out the Nautilus breaks through the thinned ice to the surface."),
  ("Free again. Ned plans for home.",
   "Saved, the three friends pledge themselves to one another. The Nautilus rounds Cape Horn and runs north along South America, past the mouth of the Amazon, and Ned hopes for a chance near the American coast."),
- ("Off the Bahamas, tales of giant poulps.",
-  "The friends argue about legends of giant poulps (squid). Then a pack of them attacks and one jams the propeller. The crew fight them on the platform with axes; a sailor is seized and carried off crying for help in French, and Nemo weeps for him."),
+ ("Off the Bahamas, tales of giant devilfish.",
+  "The friends argue about legends of giant devilfish (squid). Then a pack of them attacks and one jams the propeller. The crew fight them on the platform with axes; a sailor is seized and carried off crying for help in French, and Nemo weeps for him."),
  ("Ned can't bear it any longer. Aronnax confronts Nemo.",
   "Ned, desperate, asks Aronnax to speak to Nemo. Nemo coldly repeats that they will never leave. A violent storm off the American coast ends any chance of escape, and the Nautilus turns east."),
  ("Off Ireland, Nemo visits a wreck on an anniversary.",
@@ -133,34 +136,34 @@ SC = [  # chapter (1-based), label, sub, setting, place description, background
  (3, 'Aboard the Abraham Lincoln', 'US frigate', 'Aboard the frigate hunting the monster.', 'A fast American frigate, fitted out to hunt the monster under Commander Farragut.', ''),
  (7, 'Adrift in the Pacific', 'Night', 'Thrown into the sea at night.', 'The open Pacific, far from land, where the frigate lost sight of them.', ''),
  (8, 'Aboard the Nautilus', 'Prisoners', 'Prisoners aboard an unknown submarine.', 'Captain Nemo’s electric submarine: library, saloon, museum and engine room, under the sea.', 'Real submarines of the 1860s were small, hand-cranked and dangerous; Verne imagined one decades ahead of its time.'),
- (14, 'Crespo Island', 'North Pacific', 'An invitation to hunt.', 'A small island in the North Pacific; its “forests” are under the sea.', ''),
- (17, 'The Pacific', 'Towards the south seas', 'Crossing the Pacific.', 'The deep Pacific, past Hawaii towards the south seas.', ''),
- (18, 'Vanikoro', 'Santa Cruz Islands', 'At the islands where La Pérouse disappeared.', 'Islands in the south-west Pacific, ringed with coral reefs.', 'The French explorer La Pérouse vanished in 1788; his wrecks at Vanikoro were identified decades later by Peter Dillon and Dumont d’Urville.'),
- (19, 'Torres Strait', 'Between Australia and New Guinea', 'Threading a dangerous strait.', 'The reef-strewn strait between Australia and New Guinea, feared by sailors.', ''),
- (20, 'Gilboa Island', 'Off New Guinea', 'Ashore on a tropical island.', 'A wooded island near the stranded Nautilus, with fruit, birds and game.', ''),
- (22, 'Beneath the Pacific', 'January', 'Confined, then a new task for Aronnax.', 'The Nautilus heads west towards the Indian Ocean.', ''),
- (23, 'The coral cemetery', 'Sea floor', 'A burial on the sea floor.', 'A coral forest on the sea floor where Nemo’s crew bury their dead.', ''),
- (24, 'The Indian Ocean', 'Part Two', 'Into the Indian Ocean.', 'The Indian Ocean, past Keeling Island towards Ceylon.', ''),
- (25, 'Ceylon', 'Bank of Manaar', 'Off Ceylon’s pearl banks.', 'The Gulf of Manaar off Ceylon (Sri Lanka), famous for its pearl oysters.', 'Pearl diving off Ceylon was dangerous, poorly paid work, done on a single breath.'),
- (27, 'The Red Sea', 'Towards Suez', 'Up the Red Sea.', 'The long, narrow Red Sea, bordered by Arabia and Africa.', 'The Suez Canal was being dug as Verne wrote; it opened in November 1869.'),
- (28, 'The Arabian Tunnel', 'Under the Isthmus of Suez', 'Through a secret tunnel.', 'An underground channel Nemo found beneath the Isthmus of Suez. It is Verne’s invention.', ''),
- (29, 'The Grecian Archipelago', 'Eastern Mediterranean', 'Among the Greek islands.', 'The islands of the eastern Mediterranean, from Crete to Santorini.', 'Crete was in revolt against Ottoman rule in 1866 to 1869, which explains Nemo’s gold.'),
- (30, 'The Mediterranean', 'Two days', 'Racing through the Mediterranean.', 'The enclosed sea Nemo dislikes, crossed at speed.', ''),
- (31, 'Vigo Bay', 'North-west Spain', 'In the bay of the sunken galleons.', 'A bay on the north-west coast of Spain.', 'In 1702 an Anglo-Dutch fleet attacked a Spanish treasure fleet sheltering here; the legend of gold on the bottom of Vigo Bay is real.'),
- (32, 'Atlantis', 'Atlantic floor', 'A night walk to a lost city.', 'The ruins of a drowned city on the Atlantic floor.', 'Plato described Atlantis, a great island that sank into the sea. Verne places it in the Atlantic west of Spain.'),
- (33, 'The hidden volcano', 'Atlantic', 'Inside an extinct volcano.', 'A crater harbour reached by an undersea passage, where Nemo mines coal.', ''),
- (34, 'The Sargasso Sea', 'Central Atlantic', 'Across a sea of weed.', 'A calm region of the Atlantic covered with floating sargassum weed.', ''),
- (35, 'The South Atlantic', 'Heading south', 'Whales and cachalots.', 'The southern ocean, rich in whales.', ''),
- (36, 'The ice barrier', 'Antarctic', 'Blocked by ice.', 'The edge of the Antarctic pack ice, where earlier explorers turned back.', ''),
- (37, 'The South Pole', '21 March 1868', 'At the bottom of the world.', 'Open sea and rocky land beyond the ice, as Verne imagined the pole.', 'No one actually reached the South Pole until Amundsen in 1911, and it lies on a high frozen plateau, not by the sea.'),
- (38, 'Under the ice', 'Trapped', 'Trapped under the ice.', 'A tunnel of ice that closes around the Nautilus.', ''),
- (40, 'Cape Horn to the Amazon', 'South America', 'North along South America.', 'From the tip of South America to the mouth of the Amazon.', ''),
- (41, 'The Bahamas', 'Caribbean', 'Among the Bahamas.', 'Steep undersea cliffs off the Bahamas, home of the giant squid.', 'Giant squid were thought legendary in Verne’s day; the first were photographed alive only in 2004.'),
- (42, 'The Gulf Stream', 'North Atlantic', 'Riding the Gulf Stream.', 'The warm current that runs from the Gulf of Mexico up the American coast and across the Atlantic.', ''),
- (43, 'Off Ireland', 'North Atlantic', 'Over a famous wreck.', 'The Atlantic off the coast of Ireland.', 'The French ship Le Vengeur du Peuple sank on 1 June 1794 fighting the British fleet; her crew’s last cry became a patriotic legend.'),
- (44, 'Off the coast of Europe', 'English Channel', 'A warship gives chase.', 'The approaches to the English Channel.', ''),
- (45, 'The Maelstrom', 'Coast of Norway', 'Escape, and the whirlpool.', 'A notorious tidal whirlpool off the Lofoten Islands in Norway.', 'The Moskstraumen is a real and powerful tidal current; writers such as Edgar Allan Poe made it legendary.'),
- (46, 'The Lofoten Islands', 'Norway', 'After the whirlpool.', 'Islands off northern Norway, where fishermen find the survivors.', ''),
+ (15, 'Crespo Island', 'North Pacific', 'An invitation to hunt.', 'A small island in the North Pacific; its “forests” are under the sea.', ''),
+ (18, 'The Pacific', 'Towards the south seas', 'Crossing the Pacific.', 'The deep Pacific, past Hawaii towards the south seas.', ''),
+ (19, 'Vanikoro', 'Santa Cruz Islands', 'At the islands where La Pérouse disappeared.', 'Islands in the south-west Pacific, ringed with coral reefs.', 'The French explorer La Pérouse vanished in 1788; his wrecks at Vanikoro were identified decades later by Peter Dillon and Dumont d’Urville.'),
+ (20, 'Torres Strait', 'Between Australia and New Guinea', 'Threading a dangerous strait.', 'The reef-strewn strait between Australia and New Guinea, feared by sailors.', ''),
+ (21, 'Gueboroa Island', 'Off New Guinea', 'Ashore on a tropical island.', 'A wooded island near the stranded Nautilus, with fruit, birds and game.', ''),
+ (23, 'Beneath the Pacific', 'January', 'Confined, then a new task for Aronnax.', 'The Nautilus heads west towards the Indian Ocean.', ''),
+ (24, 'The coral cemetery', 'Sea floor', 'A burial on the sea floor.', 'A coral forest on the sea floor where Nemo’s crew bury their dead.', ''),
+ (25, 'The Indian Ocean', 'Part Two', 'Into the Indian Ocean.', 'The Indian Ocean, past Keeling Island towards Ceylon.', ''),
+ (26, 'Ceylon', 'Gulf of Mannar', 'Off Ceylon’s pearl banks.', 'The Gulf of Mannar off Ceylon (Sri Lanka), famous for its pearl oysters.', 'Pearl diving off Ceylon was dangerous, poorly paid work, done on a single breath.'),
+ (28, 'The Red Sea', 'Towards Suez', 'Up the Red Sea.', 'The long, narrow Red Sea, bordered by Arabia and Africa.', 'The Suez Canal was being dug as Verne wrote; it opened in November 1869.'),
+ (29, 'The Arabian Tunnel', 'Under the Isthmus of Suez', 'Through a secret tunnel.', 'An underground channel Nemo found beneath the Isthmus of Suez. It is Verne’s invention.', ''),
+ (30, 'The Grecian Archipelago', 'Eastern Mediterranean', 'Among the Greek islands.', 'The islands of the eastern Mediterranean, from Crete to Santorini.', 'Crete was in revolt against Ottoman rule in 1866 to 1869, which explains Nemo’s gold.'),
+ (31, 'The Mediterranean', 'Two days', 'Racing through the Mediterranean.', 'The enclosed sea Nemo dislikes, crossed at speed.', ''),
+ (32, 'Vigo Bay', 'North-west Spain', 'In the bay of the sunken galleons.', 'A bay on the north-west coast of Spain.', 'In 1702 an Anglo-Dutch fleet attacked a Spanish treasure fleet sheltering here; the legend of gold on the bottom of Vigo Bay is real.'),
+ (33, 'Atlantis', 'Atlantic floor', 'A night walk to a lost city.', 'The ruins of a drowned city on the Atlantic floor.', 'Plato described Atlantis, a great island that sank into the sea. Verne places it in the Atlantic west of Spain.'),
+ (34, 'The hidden volcano', 'Atlantic', 'Inside an extinct volcano.', 'A crater harbour reached by an undersea passage, where Nemo mines coal.', ''),
+ (35, 'The Sargasso Sea', 'Central Atlantic', 'Across a sea of weed.', 'A calm region of the Atlantic covered with floating sargassum weed.', ''),
+ (36, 'The South Atlantic', 'Heading south', 'Sperm whales and baleen whales.', 'The southern ocean, rich in whales.', ''),
+ (37, 'The ice barrier', 'Antarctic', 'Blocked by ice.', 'The edge of the Antarctic pack ice, where earlier explorers turned back.', ''),
+ (38, 'The South Pole', '21 March 1868', 'At the bottom of the world.', 'Open sea and rocky land beyond the ice, as Verne imagined the pole.', 'No one actually reached the South Pole until Amundsen in 1911, and it lies on a high frozen plateau, not by the sea.'),
+ (39, 'Under the ice', 'Trapped', 'Trapped under the ice.', 'A tunnel of ice that closes around the Nautilus.', ''),
+ (41, 'Cape Horn to the Amazon', 'South America', 'North along South America.', 'From the tip of South America to the mouth of the Amazon.', ''),
+ (42, 'The Bahamas', 'Caribbean', 'Among the Bahamas.', 'Steep undersea cliffs off the Bahamas, home of the giant squid.', 'Giant squid were thought legendary in Verne’s day; the first were photographed alive only in 2004.'),
+ (43, 'The Gulf Stream', 'North Atlantic', 'Riding the Gulf Stream.', 'The warm current that runs from the Gulf of Mexico up the American coast and across the Atlantic.', ''),
+ (44, 'Off Ireland', 'North Atlantic', 'Over a famous wreck.', 'The Atlantic off the coast of Ireland.', 'The French ship Le Vengeur du Peuple (the Avenger in the book) sank on 1 June 1794 fighting the British fleet; her crew’s last cry became a patriotic legend.'),
+ (45, 'Off the coast of Europe', 'English Channel', 'A warship gives chase.', 'The approaches to the English Channel.', ''),
+ (46, 'The Maelstrom', 'Coast of Norway', 'Escape, and the whirlpool.', 'A notorious tidal whirlpool off the Lofoten Islands in Norway.', 'The Moskstraumen is a real and powerful tidal current; writers such as Edgar Allan Poe made it legendary.'),
+ (47, 'The Lofoten Islands', 'Norway', 'After the whirlpool.', 'Islands off northern Norway, where fishermen find the survivors.', ''),
 ]
 scenes, gscenes, places = [], [], {}
 for ch, label, sub, sset, desc, ctx in SC:
@@ -170,10 +173,10 @@ for ch, label, sub, sset, desc, ctx in SC:
 
 # ---------------- people, cast and character map ----------------
 people = {
- 'Professor Aronnax': {'look': '', 'about': [[1, 'Pierre Aronnax, assistant professor at the Paris Museum of Natural History and an expert on the ocean depths; he tells the story.'], [6, 'A prisoner on the Nautilus, torn between scientific wonder and the wish to be free.'], [43, 'Comes to see Nemo as both admirable and terrible.']]},
- 'Conseil': {'look': '', 'about': [[2, 'Aronnax’s servant: a devoted, unflappable Flemish young man who accompanies him everywhere.'], [6, 'Will not leave his master, even in the sea at night.'], [12, 'Classifies every living thing he sees, though he cannot tell one fish from another by sight.']]},
- 'Ned Land': {'look': 'About forty, over six feet tall, strongly built, grave and quiet, but violent when contradicted, with a bold look.', 'about': [[3, 'A Canadian harpooner, the best on the frigate and the only one who doubts the monster exists.'], [8, 'Hates captivity and longs for fresh meat and dry land.'], [28, 'Never stops planning to escape.']]},
- 'Captain Nemo': {'look': 'Tall, with a large forehead, straight nose, clearly cut mouth, fine teeth and long, fine hands; black, cold, confident eyes and pale skin. He could be thirty-five or fifty.', 'about': [[9, 'Commander of the Nautilus, a brilliant engineer and scholar who has broken with humanity.'], [25, 'Shows compassion for the poor and the oppressed.'], [43, 'Carries a deep hatred of one nation, and a private grief.']]},
+ 'Professor Aronnax': {'look': '', 'about': [[1, 'Pierre Aronnax, assistant professor at the Paris Museum of Natural History and an expert on the ocean depths; he tells the story.'], [6, 'A prisoner on the Nautilus, torn between scientific wonder and the wish to be free.'], [44, 'Comes to see Nemo as both admirable and terrible.']]},
+ 'Conseil': {'look': '', 'about': [[2, 'Aronnax’s servant: a devoted, unflappable Flemish young man who accompanies him everywhere.'], [6, 'Will not leave his master, even in the sea at night.'], [13, 'Classifies every living thing he sees, though he cannot tell one fish from another by sight.']]},
+ 'Ned Land': {'look': 'About forty, over six feet tall, strongly built, grave and quiet, but violent when contradicted, with a bold look.', 'about': [[3, 'A Canadian harpooner, the best on the frigate and the only one who doubts the monster exists.'], [8, 'Hates captivity and longs for fresh meat and dry land.'], [29, 'Never stops planning to escape.']]},
+ 'Captain Nemo': {'look': 'Tall, with a large forehead, straight nose, clearly cut mouth, fine teeth and long, fine hands; black, cold, confident eyes and pale skin. He could be thirty-five or fifty.', 'about': [[9, 'Commander of the Nautilus, a brilliant engineer and scholar who has broken with humanity.'], [26, 'Shows compassion for the poor and the oppressed.'], [44, 'Carries a deep hatred of one nation, and a private grief.']]},
  'Commander Farragut': {'look': '', 'about': [[3, 'Commander of the frigate Abraham Lincoln, absolutely convinced the monster exists.']]},
 }
 cast = {
@@ -184,12 +187,12 @@ cast = {
  'Commander Farragut': 'Commander of the US frigate Abraham Lincoln, which hunts the monster.',
  'The engineer': 'The engineer of the Abraham Lincoln.',
 }
-a_aron = at(r'I had just returned from a scientific research', 2)
-a_cons = at(r'Conseil was my servant', 3)
-a_ned = at(r'Ned Land was about forty years of age', 4)
-a_farr = at(r'Commander Farragut\?', 3)
-a_nemo = at(r'I am nothing to you but Captain Nemo', 10)
-a_crew = at(r'eight strong men, with masked faces', 7)
+a_aron = at(r'I had returned from a scientific undertaking', 2)
+a_cons = at(r'Conseil was my manservant', 3)
+a_ned = at(r'Ned Land was about forty years old', 4)
+a_farr = at(r'“Commander Farragut\?”', 3)
+a_nemo = at(r'I’m simply Captain Nemo', 10)
+a_crew = at(r'eight strapping fellows appeared', 7)
 nodes = [
  ['Professor Aronnax', 'Prof. Aronnax', 50, 46, cpw(a_aron)],
  ['Conseil', 'Conseil', 24, 70, cpw(a_cons)],
@@ -203,7 +206,7 @@ edges = [
  ['Ned Land', 'Professor Aronnax', 'shipmate, then fellow prisoner and friend', cpw(a_ned)],
  ['Commander Farragut', 'Professor Aronnax', 'his host on the frigate', cpw(a_farr)],
  ['Commander Farragut', 'Ned Land', 'hired Ned as harpooner', cpw(a_ned)],
- ['Conseil', 'Ned Land', 'friends; Conseil calms Ned', cpw(at(r'Calm yourself, friend Ned', 8))],
+ ['Conseil', 'Ned Land', 'friends; Conseil calms Ned', cpw(at(r'“Calm down, Ned,”', 8))],
  ['Captain Nemo', 'Professor Aronnax', 'captor and host; they share a love of the sea', cpw(a_nemo)],
  ['Captain Nemo', 'Ned Land', 'captor; Ned’s constant enemy', cpw(a_nemo)],
  ['Captain Nemo', 'The crew', 'their commander; they speak an unknown language', cpw(a_nemo)],
@@ -212,18 +215,18 @@ cast['The crew'] = 'The men of the Nautilus, loyal to Nemo, who speak a language
 
 # ---------------- background notes ----------------
 context = [
- [0, 'The author', 'Jules Verne (1828–1905) published Twenty Thousand Leagues under the Sea as a magazine serial in 1869–70. This is an early public-domain English translation, shorter in places than the French original.'],
+ [0, 'The author', 'Jules Verne (1828–1905) published Twenty Thousand Leagues under the Sea as a magazine serial in 1869–70. This is F. P. Walter’s complete, unabridged translation (1999), made from the original French editions of 1869–71.'],
  [0, 'What the title means', 'The 20,000 leagues are the distance travelled under the sea, not the depth. A league here is about 4 kilometres (2.5 miles), so the voyage covers some 80,000 km, about twice round the world.'],
  [1, 'Narwhals', 'The narwhal is a real Arctic whale whose males grow a long spiral tusk. Aronnax imagines a gigantic one strong enough to pierce a ship.'],
- [3, 'Units at sea', 'A fathom is 6 feet (1.8 m); a cable is a tenth of a nautical mile; a knot is one nautical mile an hour. The translation mixes miles, yards, feet and fathoms.'],
+ [3, 'Units at sea', 'A fathom is 6 feet (1.8 m); a cable is a tenth of a nautical mile; a knot is one nautical mile an hour. This translation keeps Verne’s metric units: a metre is about 3.3 feet, and a kilometre about 0.6 miles.'],
  [7, 'Mobilis in mobili', 'The ship’s Latin motto means roughly “moving in the moving element”: free within the sea.'],
- [10, 'Electricity in the 1860s', 'When Verne wrote, electricity was a new science, used mostly for the telegraph. A ship powered entirely by it was a bold leap of imagination.'],
- [12, 'Classifying life', 'Conseil names animals by branch, class, order and genus, the system of classification naturalists used, which Aronnax had taught him.'],
- [17, 'La Pérouse', 'Jean-François de La Pérouse led a French voyage of exploration that vanished in 1788. Its fate was a famous mystery for decades.'],
- [26, 'The Suez Canal', 'The canal linking the Mediterranean and the Red Sea was built by Ferdinand de Lesseps and opened in 1869, the year this book began to appear.'],
- [31, 'Atlantis', 'Plato’s legend of a rich island that sank into the sea in a single day. Verne lets his characters find its ruins.'],
- [42, 'The transatlantic cable', 'The first lasting telegraph cable between Ireland and Newfoundland was laid by the ship Great Eastern in 1866.'],
- [44, 'Who is Nemo?', 'In this book Verne never reveals Nemo’s nationality or past. “Nemo” is Latin for “no one”.'],
+ [11, 'Electricity in the 1860s', 'When Verne wrote, electricity was a new science, used mostly for the telegraph. A ship powered entirely by it was a bold leap of imagination.'],
+ [13, 'Classifying life', 'Conseil names animals by branch, class, order and genus, the system of classification naturalists used, which Aronnax had taught him.'],
+ [18, 'La Pérouse', 'Jean-François de La Pérouse led a French voyage of exploration that vanished in 1788. Its fate was a famous mystery for decades.'],
+ [27, 'The Suez Canal', 'The canal linking the Mediterranean and the Red Sea was built by Ferdinand de Lesseps and opened in 1869, the year this book began to appear.'],
+ [32, 'Atlantis', 'Plato’s legend of a rich island that sank into the sea in a single day. Verne lets his characters find its ruins.'],
+ [43, 'The transatlantic cable', 'The first lasting telegraph cable between Ireland and Newfoundland was laid by the ship Great Eastern in 1866.'],
+ [45, 'Who is Nemo?', 'In this book Verne never reveals Nemo’s nationality or past. “Nemo” is Latin for “no one”.'],
 ]
 
 # ---------------- extras: the voyage, depths and the Nautilus ----------------
@@ -233,33 +236,33 @@ def proj(lat, lon):
     return [round(x, 1), round(80 - lat, 1)]
 VOY = [  # name, lat, lon, anchor, mode, note, quote phrase found near the anchor
  ('New York', 40.7, -74.0, at(r'dark waters of the Atlantic', 3), 'ship', 'The Abraham Lincoln sets out to hunt the monster.', ''),
- ('Cape Horn', -56.0, -67.3, at(r'doubled Cape Horn', 5), 'ship', 'The frigate rounds the tip of South America into the Pacific.', ''),
- ('Off Japan', 31.25, 136.7, at(r'31° 15′ north latitude', 5), 'ship', 'Months of search in the North Pacific; here the frigate meets the “monster”.', '31° 15′ north latitude and 136° 42′ east longitude'),
- ('Off Japan', 33.0, 140.5, at(r'yellowed by the Japanese coast', 13), 'nautilus', 'The Nautilus takes its starting bearings off Japan.', 'slightly yellowed by the Japanese coast'),
- ('Crespo Island', 32.67, -157.83, at(r'32° 40′ north lat', 14), 'nautilus', 'Its “forests” are under the sea.', 'in 32° 40′ north lat. and 157° 50′ west long.'),
- ('Hawaii', 19.6, -155.5, at(r'sighted the Sandwich Islands', 17), 'nautilus', 'The Sandwich Islands, now Hawaii.', 'We had then gone 4,860 leagues from our starting-point.'),
- ('Tuamotu Islands', -18.5, -136.5, at(r'Island of Clermont-Tonnere', 18), 'nautilus', 'The “dangerous group” of low coral islands.', ''),
- ('Vanikoro', -11.65, 166.9, at(r'“Vanikoro\.”', 18), 'nautilus', 'Where La Pérouse was wrecked.', ''),
- ('Torres Strait', -9.9, 142.5, at(r'steered for the Island of Gilboa', 19), 'nautilus', 'The Nautilus runs aground on the reefs.', ''),
- ('Keeling Island', -12.08, 94.55, at(r'we observed Keeling Island', 24), 'nautilus', 'A coral island in the Indian Ocean.', '12° 5′ S. lat., and 94° 33′ long., we observed Keeling Island'),
- ('Ceylon', 8.9, 79.5, at(r'nearing the island of Ceylon', 25), 'nautilus', 'The pearl banks of Manaar.', 'we were nearing the island of Ceylon'),
- ('Laccadives', 11.0, 72.0, at(r'We had made 16,220 miles', 27), 'nautilus', 'Heading for the Red Sea.', 'We had made 16,220 miles, or 7,500 (French) leagues'),
- ('Red Sea', 21.5, 39.2, at(r'in 21° 30′ N\. lat\.', 28), 'nautilus', 'Off Djeddah, on the Arabian coast.', 'in 21° 30′ N. lat., the Nautilus floated on the surface of the sea'),
- ('Arabian Tunnel', 31.2, 32.3, at(r'turning to me, said: “The Mediterranean!”', 28), 'nautilus', 'Under the Isthmus of Suez into the Mediterranean.', '“The Mediterranean!”'),
- ('Santorini', 36.4, 25.4, at(r'Near the Island of Santorin', 29), 'nautilus', 'Boiling water over an undersea volcano.', 'Near the Island of Santorin'),
- ('Gibraltar', 35.95, -5.6, at(r'crossed the Straits of Gibraltar', 30), 'nautilus', 'Out of the Mediterranean in forty-eight hours.', 'we had crossed the Straits of Gibraltar by sunrise on the 18th'),
- ('Vigo Bay', 42.25, -8.8, at(r'we are in that Vigo Bay', 31), 'nautilus', 'The sunken treasure galleons.', 'we are in that Vigo Bay'),
- ('Atlantis', 33.0, -20.0, at(r'traced the one word: ATLANTIS', 32), 'nautilus', 'The drowned city. Its position is approximate.', 'ATLANTIS'),
- ('Sargasso Sea', 30.0, -50.0, at(r'called the Sargasso Sea', 34), 'nautilus', 'A sea of floating weed.', ''),
- ('The great dive', -45.62, -37.88, at(r'45° 37′ S\. lat', 34), 'nautilus', 'Where the Nautilus dives 16,000 yards.', '45° 37′ S. lat., and 37° 53′ W. long.'),
- ('The ice barrier', -67.65, -51.5, at(r'51° 30′ long\. and 67° 39′', 36), 'nautilus', 'Blocked by the Antarctic ice.', '51° 30′ long. and 67° 39′ of S. lat.'),
- ('South Pole', -89.5, -45.0, at(r'“The South Pole!” replied Captain Nemo', 37), 'nautilus', 'Reached on 21 March 1868.', '“The South Pole!” replied Captain Nemo'),
- ('Cape Horn', -56.0, -67.3, at(r'shaped for Cape Horn', 40), 'nautilus', 'Back round the tip of South America.', 'the course shaped for Cape Horn'),
- ('The Amazon', 0.0, -50.0, at(r'mouth of the Amazon River', 40), 'nautilus', 'Off the vast mouth of the Amazon.', 'land appeared at the mouth of the Amazon River'),
- ('The Bahamas', 25.0, -77.3, at(r'archipelago of the Bahamas', 41), 'nautilus', 'Where the giant poulps attack.', 'The land nearest us was the archipelago of the Bahamas.'),
- ('Newfoundland', 44.5, -50.0, at(r'Bank of Newfoundland', 43), 'nautilus', 'Over the transatlantic cable.', 'the extreme south of the Bank of Newfoundland'),
- ('The Avenger', 47.4, -17.47, at(r'latitude 47° 24′, longitude 17° 28′', 43), 'nautilus', 'The wreck of the French warship.', 'in latitude 47° 24′, longitude 17° 28′'),
- ('The Maelstrom', 67.8, 12.8, at(r'dangerous coast of Norway', 45), 'nautilus', 'The whirlpool off the Lofoten Islands.', 'We were then upon the dangerous coast of Norway.'),
+ ('Cape Horn', -56.0, -67.3, at(r'maneuvered instead to double Cape Horn', 5), 'ship', 'The frigate rounds the tip of South America into the Pacific.', ''),
+ ('Off Japan', 31.25, 136.7, at(r'latitude 31 degrees 15′ north', 5), 'ship', 'Months of search in the North Pacific; here the frigate meets the “monster”.', 'latitude 31 degrees 15′ north and longitude 136 degrees 42′ east'),
+ ('Off Japan', 33.0, 140.5, at(r'yellowish near the landing places of Japan', 14), 'nautilus', 'The Nautilus takes its starting bearings off Japan.', 'a little yellowish near the landing places of Japan'),
+ ('Crespo Island', 32.67, -167.83, at(r'latitude 32 degrees 40′ north', 15), 'nautilus', 'Its “forests” are under the sea.', 'latitude 32 degrees 40′ north and longitude 167 degrees 50′ west'),
+ ('Hawaii', 19.6, -155.5, at(r'in sight of the Hawaiian Islands', 18), 'nautilus', 'The Hawaiian Islands, where Captain Cook died.', 'By then we had fared 4,860 leagues from our starting point.'),
+ ('Tuamotu Islands', -18.5, -136.5, at(r'we raised the Tuamotu Islands', 19), 'nautilus', 'The “dangerous group” of low coral islands.', ''),
+ ('Vanikoro', -11.65, 166.9, at(r'just one word: “Vanikoro\.”', 19), 'nautilus', 'Where La Pérouse was wrecked.', ''),
+ ('Torres Strait', -9.9, 142.5, at(r'Gueboroa Island', 21), 'nautilus', 'The Nautilus runs aground on the reefs.', ''),
+ ('Keeling Island', -12.08, 94.55, at(r'we raised Keeling Island', 25), 'nautilus', 'A coral island in the Indian Ocean.', 'we raised Keeling Island'),
+ ('Ceylon', 8.9, 79.5, at(r'we were off the island of Ceylon', 26), 'nautilus', 'The pearl fisheries of the Gulf of Mannar.', 'we were off the island of Ceylon'),
+ ('Laccadives', 11.0, 72.0, at(r'we had fared 16,220 miles', 28), 'nautilus', 'Heading for the Red Sea.', 'we had fared 16,220 miles, or 7,500 leagues'),
+ ('Red Sea', 21.5, 39.2, at(r'latitude 21 degrees 30′ north', 29), 'nautilus', 'Off Jidda, on the Arabian coast.', 'at latitude 21 degrees 30′ north, the Nautilus was afloat on the surface'),
+ ('Arabian Tunnel', 31.2, 32.3, at(r'“The Mediterranean,” he told me', 29), 'nautilus', 'Under the Isthmus of Suez into the Mediterranean.', '“The Mediterranean,” he told me.'),
+ ('Santorini', 36.4, 25.4, at(r'Near the island of Santorini', 30), 'nautilus', 'Boiling water over an undersea volcano.', 'Near the island of Santorini'),
+ ('Gibraltar', 35.95, -5.6, at(r'cleared the Strait of Gibraltar', 31), 'nautilus', 'Out of the Mediterranean in forty-eight hours.', 'we cleared the Strait of Gibraltar by sunrise on the 18th'),
+ ('Vigo Bay', 42.25, -8.8, at(r'the galleons entered the Bay of Vigo', 32), 'nautilus', 'The sunken treasure galleons.', 'the galleons entered the Bay of Vigo'),
+ ('Atlantis', 33.0, -20.0, at(r'scrawled this one word: ATLANTIS', 33), 'nautilus', 'The drowned city. Its position is approximate.', 'ATLANTIS'),
+ ('Sargasso Sea', 30.0, -50.0, at(r'called the Sargasso Sea', 35), 'nautilus', 'A sea of floating weed.', ''),
+ ('The great dive', -45.62, -37.88, at(r'latitude 45 degrees 37′ south', 35), 'nautilus', 'Where the Nautilus dives 16,000 metres.', 'latitude 45 degrees 37′ south and longitude 37 degrees 53′ west'),
+ ('The ice barrier', -67.65, -51.5, at(r'longitude 51 degrees 30′ and latitude 67 degrees 39′', 37), 'nautilus', 'Blocked by the Antarctic ice.', 'longitude 51 degrees 30′ and latitude 67 degrees 39′ south'),
+ ('South Pole', -89.5, -45.0, at(r'“The South Pole!” Captain Nemo replied', 38), 'nautilus', 'Reached on 21 March 1868.', '“The South Pole!” Captain Nemo replied'),
+ ('Cape Horn', -56.0, -67.3, at(r'the promontory of Cape Horn', 41), 'nautilus', 'Back round the tip of South America.', 'the promontory of Cape Horn'),
+ ('The Amazon', 0.0, -50.0, at(r'mouth of the Amazon River', 41), 'nautilus', 'Off the vast mouth of the Amazon.', 'the shore reappeared at the mouth of the Amazon River'),
+ ('The Bahamas', 25.0, -77.3, at(r'island group of the Bahamas', 42), 'nautilus', 'Where the giant devilfish attack.', 'The nearest land was the island group of the Bahamas'),
+ ('Newfoundland', 44.5, -50.0, at(r'Grand Banks of Newfoundland', 44), 'nautilus', 'Over the transatlantic cable.', 'off the southern tip of the Grand Banks of Newfoundland'),
+ ('The Avenger', 47.4, -17.47, at(r'latitude 47 degrees 24′ and longitude 17 degrees 28′', 44), 'nautilus', 'The wreck of the French warship.', 'latitude 47 degrees 24′ and longitude 17 degrees 28′'),
+ ('The Maelstrom', 67.8, 12.8, at(r'off the Norwegian coast', 46), 'nautilus', 'The whirlpool off the Lofoten Islands.', 'Were we lying in the dangerous waterways off the Norwegian coast?'),
 ]
 for v in VOY:
     if v[6]: check(v[6], v[3])
@@ -301,35 +304,35 @@ for g in topo['objects']['countries']['geometries']:
         land.append('M' + 'L'.join(f'{x:g},{y:g}' for x, y in pts) + 'Z')
 voyage['land'] = ''.join(land)
 LEAGUES = [  # Verne's own running totals
- (at(r'We had then gone 4,860 leagues', 17), 4860, 'We had then gone 4,860 leagues from our starting-point.'),
- (at(r'5,250 French leagues', 19), 5250, 'we had made 11,340 miles, or 5,250 French leagues'),
- (at(r'We had made 16,220 miles', 27), 7500, 'We had made 16,220 miles, or 7,500 (French) leagues'),
- (at(r'about 13,000 leagues', 34), 13000, 'We had then made about 13,000 leagues'),
- (at(r'We had travelled 17,000 leagues', 41), 17000, 'We had travelled 17,000 leagues'),
- (at(r'I have crossed 20,000 leagues', 46), 20000, 'I have crossed 20,000 leagues'),
+ (at(r'we had fared 4,860 leagues', 18), 4860, 'By then we had fared 4,860 leagues from our starting point.'),
+ (at(r'hence 5,250 leagues', 20), 5250, 'we had fared 11,340 miles, hence 5,250 leagues'),
+ (at(r'we had fared 16,220 miles', 28), 7500, 'we had fared 16,220 miles, or 7,500 leagues'),
+ (at(r'fared nearly 13,000 leagues', 35), 13000, 'By then we had fared nearly 13,000 leagues'),
+ (at(r'We had fared 17,000 leagues', 42), 17000, 'We had fared 17,000 leagues'),
+ (at(r'I’ve cleared 20,000 leagues', 47), 20000, 'I’ve cleared 20,000 leagues'),
 ]
 for i, n, q in LEAGUES: check(q, i)
 voyage['leagues'] = [[sent_end(i), n, q] for i, n, q in LEAGUES]
-DEPTH = [  # anchor, metres, quote, note
- (at(r'a depth of a hundred and five yards', 15), 96, 'We were at a depth of a hundred and five yards', 'Walking on the sea floor off Crespo Island.', 'Sea-floor walk, Crespo'),
- (at(r'it kept at a depth of 1,000 yards', 17), 914, 'it kept at a depth of 1,000 yards', 'Cruising the deep Pacific.', 'Deep Pacific cruise'),
- (at(r'attained a depth of about three hundred yards', 23), 274, 'we had attained a depth of about three hundred yards', 'The walk to the coral cemetery.', 'Coral cemetery walk'),
- (at(r'bottom of the Atlantic at a depth of 150 fathoms', 32), 274, 'we set foot on the bottom of the Atlantic at a depth of 150 fathoms', 'The night walk to Atlantis.', 'Night walk to Atlantis'),
- (at(r'a depth of 16,000 yards', 34), 14630, 'We had attained a depth of 16,000 yards (four leagues)', 'The great dive in the South Atlantic: deeper than the deepest real ocean trench, about 11,000 metres.', 'The great dive'),
- (at(r'rested on the ice at a depth of 350 yards', 39), 320, 'rested on the ice at a depth of 350 yards', 'Trapped beneath the Antarctic ice.', 'Under the Antarctic ice'),
- (at(r'at a depth of more than 1,400 fathoms', 43), 2560, 'at a depth of more than 1,400 fathoms', 'Over the transatlantic telegraph cable.', 'Over the Atlantic cable'),
+DEPTH = [  # anchor, metres, quote, note, label
+ (at(r'We reached a depth of 100 meters', 16), 100, 'We reached a depth of 100 meters', 'Walking on the sea floor off Crespo Island.', 'Sea-floor walk, Crespo'),
+ (at(r'sitting at a depth of 1,000 meters', 18), 1000, 'it was sitting at a depth of 1,000 meters', 'Cruising the deep Pacific.', 'Deep Pacific cruise'),
+ (at(r'we reached a depth of about 300 meters', 24), 300, 'we reached a depth of about 300 meters', 'The walk to the coral cemetery.', 'Coral cemetery walk'),
+ (at(r'floor of the Atlantic, 300 meters down', 33), 300, 'we set foot on the floor of the Atlantic, 300 meters down', 'The night walk to Atlantis.', 'Night walk to Atlantis'),
+ (at(r'We reached a depth of 16,000 meters', 35), 16000, 'We reached a depth of 16,000 meters', 'The great dive in the South Atlantic: deeper than the deepest real ocean trench, about 11,000 metres.', 'The great dive'),
+ (at(r'icy bottom at a depth of 350 meters', 40), 350, 'rested on the icy bottom at a depth of 350 meters', 'Trapped beneath the Antarctic ice.', 'Under the Antarctic ice'),
+ (at(r'2,800 meters down', 44), 2800, '2,800 meters down, that I spotted this cable', 'Over the transatlantic telegraph cable.', 'Over the Atlantic cable'),
 ]
 for i, m, q, n, l in DEPTH: check(q, i)
 depths = [[sent_end(i), m, q, n, l] for i, m, q, n, l in DEPTH]
 VESSEL = [  # anchor, label, value, note
- (at(r'Twelve thousand, M\. Aronnax', 10), 'Library', '12,000 books', 'Nemo’s only ties to the world above.'),
- (at(r'This agent is electricity', 11), 'Power', 'Electricity', 'Made on board, from the sea itself.'),
- (at(r'A speed of fifty miles an hour', 11), 'Top speed', '50 miles an hour', ''),
- (at(r'exactly 232 feet', 12), 'Length', '232 feet (70 m)', 'Shaped like a cigar, with conical ends.'),
- (at(r'maximum breadth is twenty-six feet', 12), 'Breadth', '26 feet (8 m)', ''),
- (at(r'or weighs 1500 tons', 12), 'Weight', '1,500 tons', 'Sinks or floats by filling and emptying its tanks.'),
- (at(r'composed of two hulls', 12), 'Hull', 'Double, of steel plates', 'Joined by T-shaped irons, strong as a solid block.'),
- (at(r'I had set up my workshops upon a desert island', 12), 'Built', 'In secret, on a desert island', 'From parts ordered from many countries under false names.'),
+ (at(r'“12,000, Professor Aronnax', 11), 'Library', '12,000 books', 'Nemo’s only remaining ties with dry land.'),
+ (at(r'This force is electricity', 12), 'Power', 'Electricity', 'Made on board, from the sea itself.'),
+ (at(r'A speed of fifty miles per hour', 12), 'Top speed', '50 miles an hour', ''),
+ (at(r'exactly seventy meters', 13), 'Length', '70 metres (230 feet)', 'Shaped like a cigar, with conical ends.'),
+ (at(r'breadth of beam is eight meters', 13), 'Breadth', '8 metres (26 feet)', ''),
+ (at(r'or weighs 1,500 metric tons', 13), 'Weight', '1,500 metric tons', 'Sinks or floats by filling and emptying its tanks.'),
+ (at(r'made up of two hulls', 13), 'Hull', 'Double, of steel', 'The two hulls are joined so firmly they act as one solid block.'),
+ (at(r'I set up my workshops on a deserted islet', 13), 'Built', 'In secret, on a deserted island', 'From parts ordered from many countries under false names.'),
 ]
 vessel = [[sent_end(i), l, v, n] for i, l, v, n in VESSEL]
 

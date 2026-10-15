@@ -7,8 +7,12 @@ const CATALOG=[
   {id:'trial',title:'The Trial',author:'Franz Kafka',note:'tr. David Wyllie',words:83878},
   {id:'ss',title:'Sense and Sensibility',author:'Jane Austen',note:'1811',words:119490,audio:'books/ss.audio.json'},
   {id:'w80',title:'Around the World in Eighty Days',author:'Jules Verne',note:'tr. George M. Towle',words:62384},
-  {id:'tl',title:'Twenty Thousand Leagues under the Sea',author:'Jules Verne',note:'1870',words:104181}
+  {id:'tl',title:'Twenty Thousand Leagues Under the Seas',author:'Jules Verne',note:'tr. F. P. Walter',words:142087}
 ];
+/* Walter's translation is under copyright and on Project Gutenberg with his permission. Its license asks for
+   this notice, with access to the full license, wherever the book is shown: the book card and its chapter list. */
+const RIGHTS={tl:'Translation copyright © 1999 Frederick Paul Walter. This eBook is for the use of anyone anywhere in the United States and most other parts of the world at no cost and with almost no restrictions whatsoever. You may copy it, give it away or re-use it under the terms of the <a href="https://www.gutenberg.org/policy/license.html" target="_blank" rel="noopener">Project Gutenberg License</a> included with this eBook or online at <a href="https://www.gutenberg.org/ebooks/2488" target="_blank" rel="noopener">www.gutenberg.org</a>. If you are not located in the United States, you will have to check the laws of the country where you are located before using this eBook.'};
+const rightsHTML=id=>RIGHTS[id]?`<div class="rights">${RIGHTS[id]}</div>`:'';
 const LIB=CATALOG.map(b=>({...b}));
 const embedded=sel=>document.querySelector(sel);
 async function fetchText(url){const r=await fetch(url);if(!r.ok)throw new Error(url+' '+r.status);return r.text()}
@@ -72,7 +76,6 @@ function buildModel(id){
   for(let i=0;i<m.N;i++)if(m.U[i]&&m.S[i]>=0){const n=m.spk[m.S[i]];if(!(n in m.first))m.first[n]=i}
   for(const n of m.map.nodes)m.first[n.id]=Math.min(m.first[n.id]??Infinity,n.i);
   cache[id]=m;
-  applyStoredAISpeakers(m);
   clearLetterSpeakers(m);
   return m;
 }
@@ -90,7 +93,7 @@ const sceneAt=i=>{let r=null;for(const s of SCENES){if(s.i<=i)r=s;else break}ret
 const DEF={
   view:'flash', widthMode:'auto', width:14, adapt:'0.6', timing:'balanced', pause:'1', resume:'sentence', chapStop:true,
   theme:'system', font:'serif', size:1, focus:'red', focal:'classic', dim:true,
-  voices:true, audio:false, aiSpeakers:true, claude:true, before:true, recall:true, coach:true, checks:'choose'
+  audio:false, claude:true, before:true, recall:true, coach:true, checks:'choose'
 };
 const KEY='fixate-trial-v4';
 const FOCAL_KEYS=['classic','mid','center'];
@@ -112,6 +115,16 @@ for(const k of['program','ladderPeak','ladderStep','sprintPct','sprintSec','rest
 if(!FOCAL_KEYS.includes(set.focal))set.focal='classic';
 for(const k of['pos','max','words','taught','last','sums','previews','shelf','place'])if(!store[k])store[k]={};for(const k of['qbank','preds'])if(!store[k])store[k]=[];
 if(store.book==null&&store.i)store.pos.trial=store.i; // migrate earlier single-book position
+/* Twenty Thousand Leagues moved from the abridged 1872 translation to F. P. Walter's complete one. Saved
+   places are word positions, so carry them over by chapter: the same fraction of the way through the same
+   chapter (the old Chapter 10 is Walter's Chapters 10 and 11). */
+store.textVer=store.textVer||{};
+if(store.textVer.tl!==2){
+  const O=[0,1967,3631,4992,6928,8617,11009,12983,14984,15859,20581,22186,24045,26044,28358,30195,32492,34153,36671,38696,41255,44333,46513,48618,51105,52610,55827,58925,61177,64037,65082,68173,70957,73532,75144,77916,80916,84266,86265,89469,91776,94089,96688,98568,101423,103732,104181],NW=[0,2299,4315,6150,8505,10651,13426,15921,18681,21078,24192,26851,29140,31447,35217,37920,40147,42606,45412,48900,51766,55499,59121,62068,64903,68447,71630,75645,79984,82955,86661,90097,93787,97376,101111,104311,108071,112031,116515,119072,122559,125989,129530,133423,136163,139186,141635,142087];
+  const mv=i=>{let c=0;while(c<O.length-2&&O[c+1]<=i)c++;const f=Math.min(1,(i-O[c])/(O[c+1]-O[c]));const a=c<9?c:c===9?9:c+1,b=c===9?11:a+1;return Math.round(NW[a]+f*(NW[b]-NW[a]))};
+  for(const k of['pos','max','place'])if(store[k]&&store[k].tl!=null)store[k].tl=mv(store[k].tl);
+  store.textVer.tl=2;
+}
 const pendingBook=store.book;
 const startId=LIB.find(b=>b.id===store.book)?store.book:LIB[0].id;
 for(let attempt=0;;attempt++){
@@ -175,7 +188,6 @@ const app=$('app'),stage=$('stage'),wordEl=$('word'),whoEl=$('who'),ctx=$('conte
 const scrub=$('scrub'),speed=$('speed'),hint=$('hint');
 
 /* ================= flash rendering ================= */
-const showSpk=i=>S[i]>=0;
 /* Focal point: a fixed proportion of each chunk, snapped to the nearest letter, so the split
    between text before and after the highlighted letter is always the same. Single words use the
    classic optimal-recognition-point table. */
@@ -197,7 +209,7 @@ function phrasePivot(s){
   for(let d=0;d<s.length;d++)for(const k of[t-d,t+d])if(k>=0&&k<s.length&&/[\p{L}\p{N}]/u.test(s[k]))return k;
   return 0;
 }
-let pivotX=0,baseSize=48,lastWho=null,stageW=0;
+let pivotX=0,baseSize=48,stageW=0;
 function layout(){
   stageW=stage.clientWidth||340;
   pivotX=Math.round(stageW*(FOCAL[set.focal]||FOCAL.classic).stage);
@@ -210,23 +222,12 @@ function layout(){
 function renderFlash(){
   const n=unitLen(idx), txt=W.slice(idx,idx+n).join(' '), p=phrasePivot(txt);
   wordEl.innerHTML=`<span>${esc(txt.slice(0,p))}</span><span class="pv">${esc(txt[p])}</span><span>${esc(txt.slice(p+1))}</span>`;
-  const sp=set.voices&&showSpk(idx);
-  wordEl.style.color=sp?`color-mix(in srgb, ${colorOf(S[idx])} ${G[idx]?55:75}%, var(--word))`:'';
   wordEl.style.fontSize=baseSize+'px';
   const [pre,pv,post]=wordEl.children;
   let lw=pre.offsetWidth+pv.offsetWidth/2;const rw=post.offsetWidth+pv.offsetWidth/2;
   const s=Math.min(1,(pivotX-4)/lw,(stageW-pivotX-4)/rw);
   if(s<1){wordEl.style.fontSize=Math.max(16,baseSize*s)+'px';lw=pre.offsetWidth+pv.offsetWidth/2}
   wordEl.style.left=(pivotX-lw)+'px';
-}
-function renderWho(){
-  const on=set.voices&&S[idx]>=0, s=S[idx], vis=on&&showSpk(idx);
-  stage.classList.toggle('speech',on);
-  stage.classList.toggle('ticks',on&&vis);
-  stage.style.setProperty('--voice',on?(vis?colorOf(s):'var(--mute)'):'var(--rule)');
-  stage.style.setProperty('--voiceText',vis?colorOf(s):'var(--mute)');
-  const key=vis?s+':'+G[idx]:(on?'?':'');
-  if(key!==lastWho){lastWho=key;whoEl.innerHTML=vis?`<span class="q">“</span>${esc(SPK[s])}${G[idx]?'<span class="g">?</span>':''}`:(on?'<span class="q">“</span>…':'')}
 }
 let lastPlace='';
 function renderPlace(){
@@ -281,10 +282,8 @@ function buildPage(){
       const L=!LT&&letterAt(i);if(L){LT=L;h+=`<div class="letter"><div class="lt-h">${esc(L.from)} to ${esc(L.to)}</div>`}
       h+=LT?`<p${letterPara(i,LT)}>`:'<p>';open=true}
     const sc=sceneStart.get(i); if(sc)h+=`<span class="sc">${esc(sc.l)}${sc.s?' · '+esc(sc.s):''}</span>`;
-    const sp=set.voices&&showSpk(i);
-    if(sp&&U[i])h+=`<span class="tag${G[i]?' g':''}" style="--c:${colorOf(S[i])}">${esc(SPK[S[i]])}${G[i]?'?':''}</span>`;
     const lw=LT?letterWord(i,LT):{w:W[i],br:false};
-    h+=`${lw.br?'<br>':''}<span data-i="${i}"${sp?` class="sp" style="--c:${colorOf(S[i])}"`:''}>${esc(lw.w)}</span> `;
+    h+=`${lw.br?'<br>':''}<span data-i="${i}">${esc(lw.w)}</span> `;
   }
   if(open)h+='</p>';if(LT)h+='</div>';
   pageEl.innerHTML=h;
@@ -317,7 +316,7 @@ pageEl.addEventListener('click',e=>{const t=e.target.closest('span[data-i]');if(
 let metaT=0;
 function render(force){
   idx=unitStart(idx);
-  if(set.view==='page')renderPage(force);else{renderFlash();renderWho()}
+  if(set.view==='page')renderPage(force);else renderFlash()
   renderLetter();
   renderPlace();
   const now=performance.now();
@@ -350,17 +349,14 @@ function drawContext(){
   const n=unitLen(idx);let h='';
   for(let i=a;i<=b;i++){
     const sc=sceneStart.get(i); if(sc&&i!==a)h+=`<span class="sc">${esc(sc.l)}</span>`;
-    const sp=set.voices&&showSpk(i);
-    if(sp&&(U[i]||i===a))h+=`<span class="tag${G[i]?' g':''}" style="--c:${colorOf(S[i])}">${esc(SPK[S[i]])}${G[i]?'?':''}</span>`;
     const cur=i>=idx&&i<idx+n;
-    h+=`<span data-i="${i}" class="${sp?'sp':''}${cur?' cur':''}${letterAt(i)?' inl':''}"${sp?` style="--c:${colorOf(S[i])}"`:''}>${esc(W[i])}</span>`+((F[i]&2)&&i<b?'<br><br>':' ');
+    h+=`<span data-i="${i}" class="${cur?'cur':''}${letterAt(i)?' inl':''}">${esc(W[i])}</span>`+((F[i]&2)&&i<b?'<br><br>':' ');
   }
   ctx.innerHTML=h;
   const cur=ctx.querySelector('.cur');if(cur)cur.scrollIntoView({block:'nearest'});
 }
 ctx.addEventListener('click',e=>{const t=e.target.closest('span[data-i]');if(t)openPop(+t.dataset.i,t)});
 
-function prevSpeaker(i){for(let j=i-1;j>=Math.max(0,i-400);j--)if(U[j])return S[j];return -2}
 
 /* ================= sessions & stats ================= */
 const DAY=d=>{const x=new Date(d);return x.getFullYear()+'-'+(x.getMonth()+1)+'-'+x.getDate()};
@@ -418,7 +414,6 @@ function pause1(j){ // [speed-scaled units, real-time ms] after word j
 function word1(i){ // [units, real-time ms] for word i shown alone
   const [pu,pm]=pause1(i);
   let u=FLASH1+1+ADAPT1*(+set.adapt)*(WT[i]-1)+pu;
-  if(set.voices&&U[i]&&S[i]>=0)u+=.175+(prevSpeaker(i)!==S[i]?.175:0);
   return[u,pm];
 }
 let NORM={};
@@ -426,7 +421,6 @@ function recalcNorm(){
   let Un=0,i=0;
   while(i<N){
     Un+=chunkUnits(i);
-    if(set.voices&&U[i]&&S[i]>=0)Un+=.35+(prevSpeaker(i)!==S[i]?.35:0);
     i+=CL[i];
   }
   unitPerWord=Un/N;NORM={};normDirty=false;
@@ -445,7 +439,6 @@ function norm1(base){ // per speed: scale for the speed-scaled part so the book,
 }
 function delayClassic(i,base){
   let ms=chunkUnits(i)*base/unitPerWord;
-  if(set.voices&&U[i]){ms+=base*.35;if(prevSpeaker(i)!==S[i])ms+=base*.35}
   return Math.max(base*.4,ms);
 }
 function delayBalanced(i,base){
@@ -476,7 +469,6 @@ function step(){
   idx=Math.min(N-1,last+1);
   store.place[BOOKID]=idx;
   if(performance.now()-lastAutoSave>5000){lastAutoSave=performance.now();save(true)}
-  if(set.aiSpeakers&&AI()){const c=chapterOf(idx);if(idx-chStart[c]>(chapterEndOf(c)-chStart[c])*.7)refineSpeakers(c+1<BOOK.length?c+1:-1)}
   render();
   if(set.coach&&Date.now()-lastRewindAt>8*60000&&sessOpen&&sessOpen.ms>8*60000&&wpm<1000)suggestSpeed(25,'Eight minutes without going back.');
   timer=setTimeout(step,delay(idx));
@@ -484,7 +476,6 @@ function step(){
 function play(skipCards){
   if(playing||app.classList.contains('quizzing'))return;
   if(!skipCards&&preStartCards())return;
-  refineSpeakers(chapterOf(idx));
   if(GUIDE&&GUIDE.gen)buildUploadGuide(chapterOf(idx));
   openSession();store.last[BOOKID]=Date.now();onStartReading();
   if(chapterEnd){chapterEnd=false;idx=nextUnit(idx);if(idx>=N-1)idx=0;hideToast()}
@@ -802,64 +793,8 @@ function showRecall(q){
     const ok=+b.dataset.c===q.a;q.stage=ok?q.stage+1:0;q.due=Date.now()+(ok?[7,30,90][Math.min(2,q.stage-1)]:1)*DAYMS;
     answer({question:q.q,choices:q.c,answer:q.a,explain:q.e,recall:true},+b.dataset.c)};
 }
-/* ================= speaker refinement with Claude =================
-   The built-in speaker model (a probabilistic conversation tracker run offline) is right most of the time.
-   When Claude is available, each chapter's dialogue is also read by Claude once, in the background, and
-   the result is kept, so every quote gets a confident speaker. */
-const aiBusy=new Set();
-function applyAI(m,ci,names){
-  const qs=m.quotes[ci]||[];
-  names.forEach((n,k)=>{
-    const q=qs[k];if(!q||!n)return;
-    let s=-1;
-    if(n!=='unknown'){s=m.spk.indexOf(n);if(s<0){m.spk.push(n);s=m.spk.length-1}}
-    for(let i=q[0];i<=q[1];i++){m.S[i]=s;m.G[i]=0}
-  });
-  clearLetterSpeakers(m);
-}
 // letters are quoted text but not speech: no speaker colour, tag or pause inside them
 function clearLetterSpeakers(m){for(const L of (m.guide&&m.guide.letters)||[])for(let i=L.a;i<=L.b;i++){m.S[i]=-1;m.G[i]=0;m.U[i]=0}}
-function applyStoredAISpeakers(m){
-  if(!store.aispk)return;
-  for(const k in store.aispk){const [b,ci]=k.split(':');if(b===m.id)applyAI(m,+ci,store.aispk[k])}
-}
-async function refineSpeakers(ci){
-  if(!set.aiSpeakers||!AI()||ci<0)return;
-  store.aispk=store.aispk||{};
-  const key=BOOKID+':'+ci;if(store.aispk[key]||aiBusy.has(key))return;
-  const m=cache[BOOKID],qs=m.quotes[ci]||[];if(!qs.length)return;
-  aiBusy.add(key);
-  try{
-    const names=new Array(qs.length).fill(null);
-    // batches of paragraphs, about 3,000 words each, with the previous paragraph for context
-    const paras=[...new Set(qs.map(q=>q[2]))];
-    let bi=0;
-    while(bi<paras.length){
-      let words=0,batch=[];
-      while(bi<paras.length&&(words<3000||!batch.length)){batch.push(paras[bi]);words+=BOOK[ci].p[paras[bi]].split(' ').length;bi++}
-      const first=batch[0],ctx=first>0?BOOK[ci].p[first-1]:'';
-      let text=ctx?`(Context) ${ctx}\n\n`:'',ids=[];
-      for(const pi of batch){
-        const base=paraStart[ci][pi],ws=BOOK[ci].p[pi].split(' ');
-        const inPara=qs.map((q,k)=>[q,k]).filter(([q])=>q[2]===pi);
-        let out='',pos=0;
-        for(const [q,k] of inPara){out+=ws.slice(pos,q[0]-base).join(' ')+` [Q${k+1}]`+ws.slice(q[0]-base,q[1]-base+1).join(' ')+' ';pos=q[1]-base+1;ids.push(k)}
-        out+=ws.slice(pos).join(' ');text+=out.trim()+'\n\n';
-      }
-      const r=await AI().json(`Below is part of a chapter of ${META.title} by ${META.author}. Each quotation is marked with an ID like [Q3] placed immediately before it.
-For every ID, decide who speaks that quotation. Use exactly one of these names: ${SPK.filter(n=>!n.startsWith('?')).join('; ')}. If the speaker is someone else, give a short description in the same style (for example "The waiter"). Use "unknown" only if it truly cannot be worked out.
-Consider who is present, turn-taking, pronouns such as "she said", people addressed by name (the person addressed is usually not the speaker), and speeches interrupted by narration that continue afterwards.
-Return only a JSON object mapping each ID to a name, like {"Q1": "...", "Q2": "..."}.
-
-${text}`,{modelTier:'quick',cache:true});
-      for(const k of ids){const v=r&&r['Q'+(k+1)];if(typeof v==='string')names[k]=v.trim()}
-    }
-    store.aispk[key]=names;save(true);
-    applyAI(m,ci,names);lastWho=null;if(!playing)render();
-  }catch(e){if(e&&e.code==='not_granted')set.aiSpeakers=false}
-  finally{aiBusy.delete(key)}
-}
-
 /* ================= reading guide (precomputed, works offline) ================= */
 const curChapter=()=>chapterOf(idx);
 function personHTML(n){
@@ -932,8 +867,8 @@ function vesselHTML(){
       <rect x="132" y="28" width="56" height="7" rx="3" fill="var(--surface2)" stroke="var(--ink)" stroke-width="1"/>
       <path d="M232 33l9-7h9l-3 8" fill="var(--surface2)" stroke="var(--ink)" stroke-width="1" stroke-linejoin="round"/>
       ${[120,140,160,180,200].map(x=>`<circle cx="${x}" cy="50" r="3.2" fill="var(--focal)" opacity=".55"/>`).join('')}
-      ${has('Length')?`<path d="M22 84H292M22 80v8M292 80v8" stroke="var(--mute)" stroke-width=".8"/><text x="157" y="81" class="dim">232 feet</text>`:''}
-      ${has('Breadth')?`<path d="M304 32V68M300 32h8M300 68h8" stroke="var(--mute)" stroke-width=".8"/><text x="300" y="20" class="dim">26 ft</text>`:''}
+      ${has('Length')?`<path d="M22 84H292M22 80v8M292 80v8" stroke="var(--mute)" stroke-width=".8"/><text x="157" y="81" class="dim">70 metres</text>`:''}
+      ${has('Breadth')?`<path d="M304 32V68M300 32h8M300 68h8" stroke="var(--mute)" stroke-width=".8"/><text x="300" y="20" class="dim">8 m</text>`:''}
     </svg>
     <dl class="facts">${vs.map(x=>`<div><dt>${esc(x[1])}</dt><dd>${esc(x[2])}${x[3]?`<span class="st"> · ${esc(x[3])}</span>`:''}</dd></div>`).join('')}</dl>
     ${later?`<p class="st">Captain Nemo reveals more about his ship later in the book.</p>`:''}
@@ -1313,7 +1248,7 @@ function drawCast(focus){
   const later=SPK.length-met.length;
   let body='';
   if(castView==='list'){
-    body=`<p class="note">Only characters you have met so far. Each speaker keeps one colour throughout, and a faded question mark means the speaker was guessed.</p>
+    body=`<p class="note">Only characters you have met so far.</p>
     <ul class="list">${met.map(({n,i})=>`<li><div class="${i===focus?'on':''}" data-s="${i}"><span class="dot" style="--c:${colorOf(i)}" aria-hidden="true"></span><span><div class="tt">${esc(n)}</div><div class="st">${esc(CAST[n]||'Referred to this way in the text.')}</div>${personHTML(n)}</span></div></li>`).join('')}</ul>
     ${later?`<p class="note">${later} more ${later===1?'character appears':'characters appear'} later in the book.</p>`:''}`;
   } else if(castView==='tree'&&GUIDE&&GUIDE.tree)body=treeHTML(m);
@@ -1594,8 +1529,8 @@ async function importPdf(file){
     LIB.push({...rec,uploaded:true});
     const named=chs.reduce((a,c)=>a+c.r.flat().filter(r=>r[2]>=0&&!r[3]).length,0);
     cardShell('Ready to read',`<div class="qq">${esc(title)}</div>
-      <div class="cards"><div class="card"><div class="v">${chs.length}</div><div class="c">${chs[0].t.startsWith('Section')?'sections':'chapters'}</div></div><div class="card"><div class="v">${words.toLocaleString()}</div><div class="c">words</div></div><div class="card"><div class="v">${spk.length}</div><div class="c">speakers found</div></div><div class="card"><div class="v">${Math.round(words/250)} min</div><div class="c">at 250 wpm</div></div></div>
-      <div class="res">Chunking, timing, speaker cues, word help, the word bank, training and stats all work as with the built-in books.${AI()?' Claude will also refine speakers and build a guide for each chapter as you read it.':' Speaker detection is simpler than for the built-in books, and chapter guides need Claude.'}</div>`,
+      <div class="cards"><div class="card"><div class="v">${chs.length}</div><div class="c">${chs[0].t.startsWith('Section')?'sections':'chapters'}</div></div><div class="card"><div class="v">${words.toLocaleString()}</div><div class="c">words</div></div><div class="card"><div class="v">${spk.length}</div><div class="c">characters found</div></div><div class="card"><div class="v">${Math.round(words/250)} min</div><div class="c">at 250 wpm</div></div></div>
+      <div class="res">Chunking, timing, word help, the word bank, training and stats all work as with the built-in books.${AI()?' Claude will also build a guide for each chapter as you read it.':' Chapter guides need Claude.'}</div>`,
       `<button class="btn" id="upLater">Not now</button><button class="btn pri" id="upGo">Start reading</button>`);
     $('upLater').onclick=()=>{closeQuiz();drawChapters()};
     $('upGo').onclick=()=>{store.seen=true;closeQuiz();switchBook(id)};
@@ -1772,7 +1707,7 @@ function openBookCard(id){
   bookDlg.innerHTML=`<div class="bookcard">
     <div class="cover" style="${clothStyle(L)}"><div class="cvpat"></div><div class="cvplate"><div class="cvtitle${b.title.length>28?' long':''}">${esc(b.title)}</div><div class="cvrule"></div><div class="cvauthor">${esc(b.author||'')}</div></div><div class="cvmark"><svg class="i"><use href="#i-eye"/></svg></div></div>
     <div class="bcbody">
-      <div class="tt">${esc(b.title)}</div><div class="st">${esc(b.author||'')}${b.note?' · '+esc(b.note):''}</div>${b.audio?'<div class="st">Read-along audiobook available</div>':''}
+      <div class="tt">${esc(b.title)}</div><div class="st">${esc(b.author||'')}${b.note?' · '+esc(b.note):''}</div>${b.audio?'<div class="st">Read-along audiobook available</div>':''}${rightsHTML(b.id)}
       <div class="bcprog"><div class="bar"><i style="width:${pct}%"></i></div><span>${st==='finished'?`Finished${e.finishedAt?' '+new Date(e.finishedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''}`:pct?pct+'% read':'Not started'}</span></div>
       ${mins?`<div class="st">${mins<60?mins+' min':Math.floor(mins/60)+' h '+mins%60+' min'} reading${ms>60000?` · about ${Math.round(w/(ms/60000))} wpm`:''}</div>`:''}
       <div class="seg" id="bcShelf" role="group" aria-label="Shelf">${SHELVES.map(([k,label])=>`<button data-v="${k}" aria-pressed="${k===st}">${label.replace(' now','')}</button>`).join('')}</div>
@@ -1855,7 +1790,7 @@ $('tabs').addEventListener('keydown',e=>{
 function drawChapters(){
   const cur=chapterOf(idx),placeCh=store.place[BOOKID]!=null?chapterOf(store.place[BOOKID]):-1;
   $('chapList').innerHTML=BOOK.map((c,i)=>{const done=chapterDone(i),sm=store.sums[ckey(i)];
-    return`<li class="chrow${done?'':' unread'}"><button data-c="${i}" class="${i===cur?'on':''}"><span class="n">${i+1}</span><span style="flex:1"><div class="tt">${esc(c.t)}</div><div class="st">${esc(c.s)}${i===placeCh&&placeCh!==cur?' · your place':''}${i===cur&&!done?' · in progress':done?' · read':''}</div></span></button>${done&&(AI()||sm)?`<button class="btn chsum" data-sum="${i}" aria-expanded="false">${sm?'Summary':'Summarise'}</button>`:''}<div class="chbody" id="chb${i}" hidden></div></li>`}).join('');
+    return`<li class="chrow${done?'':' unread'}"><button data-c="${i}" class="${i===cur?'on':''}"><span class="n">${i+1}</span><span style="flex:1"><div class="tt">${esc(c.t)}</div><div class="st">${esc(c.s)}${i===placeCh&&placeCh!==cur?' · your place':''}${i===cur&&!done?' · in progress':done?' · read':''}</div></span></button>${done&&(AI()||sm)?`<button class="btn chsum" data-sum="${i}" aria-expanded="false">${sm?'Summary':'Summarise'}</button>`:''}<div class="chbody" id="chb${i}" hidden></div></li>`}).join('')+(RIGHTS[BOOKID]?`<li class="rightsli">${rightsHTML(BOOKID)}</li>`:'');
   drawLibrary();
 }
 function bookProgress(id){
@@ -1883,7 +1818,7 @@ async function switchBook(id){
   useModel(buildModel(id));
   idx=clamp(store.pos[id]|0,0,N-1);
   if(store.place[id]==null&&idx>0)store.place[id]=idx;
-  scrub.max=N-1;pgFrom=-1;pgTo=-1;lastWho=null;lastLetter=null;lastPlace=null;chapterEnd=false;lastQuizIdx=0;rewinds=[];
+  scrub.max=N-1;pgFrom=-1;pgTo=-1;lastLetter=null;lastPlace=null;chapterEnd=false;lastQuizIdx=0;rewinds=[];
   sessOpen=null;
   stopAudio();audCh=-1;AUD=null;if(set.audio&&hasAudio())loadAudio(id);applyAudioUI();
   setHeader();drawChapters();syncChunks();layout();save(true);
@@ -1896,7 +1831,7 @@ function showWelcome(){
   <div class="qq">Read faster, and understand more of what you read.</div>
   <div class="feat">
     <div><svg class="i"><use href="#i-eye"/></svg><span><b>One phrase at a time.</b> Keep your eyes still while the text comes to you. Tap the reader to start, drag it to go back.</span></div>
-    <div><svg class="i"><use href="#i-chat"/></svg><span><b>Always know who is talking.</b> Each character's words take on their own colour.</span></div>
+    <div><svg class="i"><use href="#i-bookmark"/></svg><span><b>Never lose your place.</b> Fixate remembers where you stopped in every book.</span></div>
     <div><svg class="i"><use href="#i-spark"/></svg><span><b>Help when you need it.</b> A reading guide, word meanings, quick checks and progress tracking.</span></div>
   </div>
   <div class="k">Choose a book to start</div>
@@ -1982,13 +1917,12 @@ const SETTINGS=[
   {type:'html',html:timingHTML},
   {k:'adapt',type:'seg',label:'Adaptive timing',opts:[['0','Off'],['0.6','Gentle'],['1','Full']],desc:'Gives hard passages more time and easy ones less, while the book as a whole runs at your set speed.'},
   {k:'audio',type:'toggle',label:'Read-along audio',desc:'Hear the audiobook while the words flash, in step with the narrator. The narration speeds up or slows down with your reading speed.',show:()=>hasAudio()},
-  {k:'voices',type:'toggle',label:'Speaker cues',desc:'Each character\'s words take on their own colour, with a short pause when someone new starts talking.'},
   {k:'checks',type:'seg',label:'After each chapter',opts:[['off','Off'],['choose','Ask me'],['summary','Summary'],['question','Question']],desc:'Summarise the chapter in your own words or answer one question. Writing your own summary first builds the strongest memory.',show:()=>!!AI()},
   {type:'grp',label:'Look'},
   {k:'theme',type:'seg',label:'Theme',opts:[['system','Auto'],['light','Day'],['dark','Dusk'],['night','Night']],desc:'Night uses warm, dim colours with little blue light.'},
   {k:'size',type:'range',label:'Text size',min:0.8,max:1.4,step:0.05,fmt:v=>Math.round(v*100)+'%'},
   {type:'grp',label:'Claude'},
-  {k:'claude',type:'toggle',label:'Claude features',desc:'Chapter checks, sharper speaker detection, word meanings in context and guides for your own PDFs. Uses your Claude account.',show:()=>!!sampleFn},
+  {k:'claude',type:'toggle',label:'Claude features',desc:'Chapter checks, word meanings in context and guides for your own PDFs. Uses your Claude account.',show:()=>!!sampleFn},
   {type:'html',html:()=>sampleFn?'':'<p class="st">Claude features are available when this page is opened in Claude.</p>'},
   {type:'html',html:advancedHTML}
 ];
@@ -2003,7 +1937,6 @@ const ADVANCED=[
   {k:'recall',type:'toggle',label:'Recall questions',desc:'Questions you answered come back days later to help you remember.',show:()=>!!AI()},
   {k:'coach',type:'toggle',label:'Speed suggestions',desc:'Suggests a slower speed when you rewind often or miss questions, and a faster one after a long clean stretch.'},
   {k:'dim',type:'toggle',label:'Dim surrounding text in Page view'},
-  {k:'aiSpeakers',type:'toggle',label:'Sharper speaker detection',desc:'Claude reads each chapter\'s dialogue once in the background and the result is saved.',show:()=>!!AI()},
   {type:'html',html:()=>`<div class="shortcuts"><kbd>Space</kbd> play or pause &nbsp; <kbd>←</kbd><kbd>→</kbd> step &nbsp; <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> sentence<br><kbd>↑</kbd><kbd>↓</kbd> speed &nbsp; <kbd>[</kbd><kbd>]</kbd> chapter &nbsp; <kbd>P</kbd> switch view &nbsp; <kbd>1</kbd>–<kbd>4</kbd> answer</div>`}
 ];
 let advOpen=false;
@@ -2071,7 +2004,7 @@ function applySettings(){
   document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===set.view)));
   document.documentElement.style.setProperty('--focus',{red:'var(--focal)',indigo:'var(--pivot)',teal:'var(--s0)',off:'var(--word)'}[set.focus]||'var(--focal)');
   document.documentElement.toggleAttribute('data-nofocal',set.focus==='off');
-  lastWho=null;syncChunks();normDirty=true;idx=unitStart(idx);
+  syncChunks();normDirty=true;idx=unitStart(idx);
   requestAnimationFrame(()=>{const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()});
   requestAnimationFrame(()=>layout());
 }
