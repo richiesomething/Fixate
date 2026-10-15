@@ -7,8 +7,14 @@ from tfind import find, W, CH
 
 d = json.load(open('annotated.json'))
 chs = d['chs']
-for c in chs: c['r'] = [[] for _ in c['p']]  # speaker cues are no longer used; the cast comes from the map below
 spk = ['Professor Aronnax', 'Conseil', 'Ned Land', 'Captain Nemo', 'Commander Farragut', 'The crew']
+# hand-checked speakers (labels.py): one code per quote, in reading order; '-' is not speech or a minor voice
+L = {}; exec(open('labels.py').read())
+CODE = {'A': 0, 'C': 1, 'N': 2, 'E': 3, 'F': 4, '-': -1}
+for ci, c in enumerate(chs):
+    lab = L[ci + 1].replace(' ', ''); runs = [r for rr in c['r'] for r in rr]
+    if len(lab) != len(runs): sys.exit(f'labels for chapter {ci + 1}: {len(lab)} codes for {len(runs)} quotes')
+    for r, ch in zip(runs, lab): r[2] = CODE[ch]; r[3] = 0
 N = len(W)
 
 def at(pat, ch=1, n=0):

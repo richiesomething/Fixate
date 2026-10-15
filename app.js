@@ -27,6 +27,7 @@ function loadBook(id){
   })().catch(e=>{delete bookLoads[id];throw e}));
 }
 const colorOf=s=>`var(--s${s%8})`;
+const showSpk=i=>set.voices&&S[i]>=0; // dialogue takes its speaker's colour (no name tags)
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -93,7 +94,7 @@ const sceneAt=i=>{let r=null;for(const s of SCENES){if(s.i<=i)r=s;else break}ret
 const DEF={
   view:'flash', widthMode:'auto', width:14, adapt:'0.6', timing:'balanced', pause:'1', resume:'sentence', chapStop:true,
   theme:'system', font:'serif', size:1, focus:'red', focal:'classic', dim:true,
-  audio:false, claude:true, before:true, recall:true, coach:true, checks:'choose'
+  voices:true, audio:false, claude:true, before:true, recall:true, coach:true, checks:'choose'
 };
 const KEY='fixate-trial-v4';
 const FOCAL_KEYS=['classic','mid','center'];
@@ -222,6 +223,10 @@ function layout(){
 function renderFlash(){
   const n=unitLen(idx), txt=W.slice(idx,idx+n).join(' '), p=phrasePivot(txt);
   wordEl.innerHTML=`<span>${esc(txt.slice(0,p))}</span><span class="pv">${esc(txt[p])}</span><span>${esc(txt.slice(p+1))}</span>`;
+  const sp=showSpk(idx);
+  wordEl.style.color=sp?`color-mix(in srgb, ${colorOf(S[idx])} ${G[idx]?55:75}%, var(--word))`:'';
+  stage.classList.toggle('ticks',sp);
+  stage.style.setProperty('--voice',sp?colorOf(S[idx]):'var(--rule)');
   wordEl.style.fontSize=baseSize+'px';
   const [pre,pv,post]=wordEl.children;
   let lw=pre.offsetWidth+pv.offsetWidth/2;const rw=post.offsetWidth+pv.offsetWidth/2;
@@ -283,7 +288,8 @@ function buildPage(){
       h+=LT?`<p${letterPara(i,LT)}>`:'<p>';open=true}
     const sc=sceneStart.get(i); if(sc)h+=`<span class="sc">${esc(sc.l)}${sc.s?' · '+esc(sc.s):''}</span>`;
     const lw=LT?letterWord(i,LT):{w:W[i],br:false};
-    h+=`${lw.br?'<br>':''}<span data-i="${i}">${esc(lw.w)}</span> `;
+    const sp=showSpk(i);
+    h+=`${lw.br?'<br>':''}<span data-i="${i}"${sp?` class="sp" style="--c:${colorOf(S[i])}"`:''}>${esc(lw.w)}</span> `;
   }
   if(open)h+='</p>';if(LT)h+='</div>';
   pageEl.innerHTML=h;
@@ -350,7 +356,8 @@ function drawContext(){
   for(let i=a;i<=b;i++){
     const sc=sceneStart.get(i); if(sc&&i!==a)h+=`<span class="sc">${esc(sc.l)}</span>`;
     const cur=i>=idx&&i<idx+n;
-    h+=`<span data-i="${i}" class="${cur?'cur':''}${letterAt(i)?' inl':''}">${esc(W[i])}</span>`+((F[i]&2)&&i<b?'<br><br>':' ');
+    const sp=showSpk(i);
+    h+=`<span data-i="${i}" class="${sp?'sp':''}${cur?' cur':''}${letterAt(i)?' inl':''}"${sp?` style="--c:${colorOf(S[i])}"`:''}>${esc(W[i])}</span>`+((F[i]&2)&&i<b?'<br><br>':' ');
   }
   ctx.innerHTML=h;
   const cur=ctx.querySelector('.cur');if(cur)cur.scrollIntoView({block:'nearest'});
@@ -1248,7 +1255,7 @@ function drawCast(focus){
   const later=SPK.length-met.length;
   let body='';
   if(castView==='list'){
-    body=`<p class="note">Only characters you have met so far.</p>
+    body=`<p class="note">Only characters you have met so far. Each character’s dialogue keeps the same colour throughout.</p>
     <ul class="list">${met.map(({n,i})=>`<li><div class="${i===focus?'on':''}" data-s="${i}"><span class="dot" style="--c:${colorOf(i)}" aria-hidden="true"></span><span><div class="tt">${esc(n)}</div><div class="st">${esc(CAST[n]||'Referred to this way in the text.')}</div>${personHTML(n)}</span></div></li>`).join('')}</ul>
     ${later?`<p class="note">${later} more ${later===1?'character appears':'characters appear'} later in the book.</p>`:''}`;
   } else if(castView==='tree'&&GUIDE&&GUIDE.tree)body=treeHTML(m);
@@ -1915,6 +1922,7 @@ const SETTINGS=[
   {type:'html',html:previewHTML},
   {k:'timing',type:'seg',label:'One-word timing',opts:[['balanced','Balanced'],['classic','Classic']],desc:'Balanced gives long, rare words clearly more time and keeps real pauses at commas and sentence ends however fast you read. Classic is the earlier timing.',show:oneWord},
   {type:'html',html:timingHTML},
+  {k:'voices',type:'toggle',label:'Speaker colours',desc:'Each character\'s dialogue takes on their own colour.'},
   {k:'adapt',type:'seg',label:'Adaptive timing',opts:[['0','Off'],['0.6','Gentle'],['1','Full']],desc:'Gives hard passages more time and easy ones less, while the book as a whole runs at your set speed.'},
   {k:'audio',type:'toggle',label:'Read-along audio',desc:'Hear the audiobook while the words flash, in step with the narrator. The narration speeds up or slows down with your reading speed.',show:()=>hasAudio()},
   {k:'checks',type:'seg',label:'After each chapter',opts:[['off','Off'],['choose','Ask me'],['summary','Summary'],['question','Question']],desc:'Summarise the chapter in your own words or answer one question. Writing your own summary first builds the strongest memory.',show:()=>!!AI()},
