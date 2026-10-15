@@ -799,6 +799,91 @@ function journeyHTML(){
     <text x="${Math.min(x+3,m.w-40)}" y="${y-3}" font-size="5.5" fill="var(--ink)" font-family="var(--serif)">${esc(nm)}</text></svg>
     <div class="st">${reached+1} of ${m.route.length} stops reached. The dashed line is the planned route announced in Chapter 3.</div></div></section>`;
 }
+/* ---- Sense and Sensibility: England map, money ledger, family tree ----
+   All three are drawn only up to the reader's furthest point (maxRead): each fact carries the index of
+   the word after which the book has revealed it. */
+function englandHTML(){
+  const g=GUIDE.england,m=maxRead();
+  const stops=g.route.filter(r=>r[3]<=m);if(!stops.length)return'';
+  const cur=stops[stops.length-1],here=cur[6];
+  const pts=stops.map(r=>r[1]+','+r[2]).join(' ');
+  const placed=new Set(stops.map(r=>r[6]));
+  const sites=g.sites.filter(s=>s[3]<=m&&!placed.has(s[0]));
+  const label=(x,y,t,cls)=>{const[dx,dy,an]=g.lab[t]||[4,-4,'start'];return`<text x="${x+dx}" y="${y+dy}" text-anchor="${an}" class="${cls}">${esc(t)}</text>`};
+  const legs=stops.slice(1).map((r,k)=>`<li><b>${esc(stops[k][6])} → ${esc(r[6])}</b> “${esc(r[5])}”</li>`).join('');
+  return`<section class="gsec"><h4>Where the Dashwoods are</h4><div class="journey eng"><svg viewBox="0 0 ${g.w} ${g.h}" role="img" aria-label="Map of southern England; the Dashwoods are now at ${esc(here)}">
+    <path d="${g.land}" fill="var(--surface2)" stroke="var(--rule)" stroke-width=".5"/>
+    ${g.counties.map(([n,x,y])=>`<text x="${x}" y="${y}" class="cty">${esc(n)}</text>`).join('')}
+    ${sites.map(s=>`<circle cx="${s[1]}" cy="${s[2]}" r="1.8" fill="var(--mute)"/>${label(s[1],s[2],s[0],'site')}`).join('')}
+    ${stops.length>1?`<polyline points="${pts}" fill="none" stroke="var(--focal)" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+    ${stops.slice(0,-1).map(r=>`<circle cx="${r[1]}" cy="${r[2]}" r="1.8" fill="var(--focal)"/>`).join('')}
+    ${[...new Map(stops.slice(0,-1).map(r=>[r[6],r])).values()].filter(r=>r[6]!==here).map(r=>label(r[1],r[2],r[6],'stop')).join('')}
+    <circle cx="${cur[1]}" cy="${cur[2]}" r="5" fill="var(--focal)" opacity=".22"/><circle cx="${cur[1]}" cy="${cur[2]}" r="2.6" fill="var(--focal)"/>
+    ${label(cur[1],cur[2],here,'now')}
+  </svg>
+  <div class="gcard"><div class="gtitle">${esc(cur[0].replace(' again',''))}</div><div class="sumtext">${esc(cur[4])}</div><div class="ctxnote">“${esc(cur[5])}”</div>
+  ${legs?`<details><summary>Journeys so far (${stops.length-1})</summary><ul class="wl">${legs}</ul></details>`:''}
+  ${sites.length?`<details><summary>Other places mentioned (${sites.length})</summary><ul class="wl">${sites.map(s=>`<li><b>${esc(s[0])}</b> ${esc(s[4])}</li>`).join('')}</ul></details>`:''}</div></div></section>`;
+}
+const money=v=>'£'+Math.round(v).toLocaleString('en-GB');
+function ledgerHTML(){
+  const m=maxRead(),items=GUIDE.ledger.items.filter(x=>x.i<=m);
+  if(!items.length)return'';
+  const later=GUIDE.ledger.items.length-items.length;
+  const bars=items.map((x,k)=>({...x,k})).filter(x=>x.yearly).sort((a,b)=>b.yearly-a.yearly);
+  const top=bars.length?bars[0].yearly:1;
+  return`<section class="gsec" id="ledger"><h4>Money</h4><div class="gcard">
+    <div class="sumtext">Every sum in the book, as it comes up. Money was invested to earn about 5% a year, so a fortune of £10,000 meant an income of about £500 a year.</div>
+    ${bars.length>1?`<div class="fb"><span>Yearly incomes so far (a fortune counts as the income it brings)</span><div class="bars" role="list">${bars.map(b=>`<button class="barrow" role="listitem" data-led="${b.k}" aria-label="${esc(b.who)}: ${esc(b.amount)}"><span class="bl">${esc(b.who)}</span><span class="bt"><i style="width:${Math.max(1.5,b.yearly/top*100).toFixed(1)}%"></i></span><span class="bv">${money(b.yearly)}</span></button>`).join('')}</div></div>`:''}
+    <ol class="ledger">${items.map((x,k)=>`<li id="led${k}"><div class="lh"><b>${esc(x.who)}</b><span>${esc(x.amount)}</span></div><div class="ctxnote">“${esc(x.quote)}”</div><div class="st">${esc(x.note)}</div></li>`).join('')}</ol>
+    ${later?`<p class="st">${later} more ${later===1?'sum comes':'sums come'} up later in the book.</p>`:''}
+  </div></section>`;
+}
+function bindLedger(box){
+  box.querySelectorAll('[data-led]').forEach(b=>b.onclick=()=>{
+    const li=$('led'+b.dataset.led);if(!li)return;
+    li.scrollIntoView({block:'center',behavior:'smooth'});li.classList.remove('flash');void li.offsetWidth;li.classList.add('flash');
+  });
+}
+function treeHTML(m){
+  const T=GUIDE.tree,P=Object.fromEntries(T.people.map(p=>[p.id,p]));
+  const shown=T.people.filter(p=>p.i<=m),ids=new Set(shown.map(p=>p.id));
+  if(!shown.length)return`<p class="empty" style="padding:0 14px">The family tree fills in as you meet people.</p>`;
+  const lab=l=>{let t='';for(const[i,x]of l.labels)if(i<=m)t=x;return t};
+  const links=T.links.filter(l=>l.labels[0][0]<=m&&ids.has(l.a)&&ids.has(l.b)).map(l=>({...l,text:lab(l),ended:l.end!=null&&l.end<=m}));
+  const sel=mapSel&&ids.has(mapSel)?mapSel:null;
+  const touches=l=>sel&&(l.a===sel||l.b===sel);
+  const spouse=id=>{const l=links.find(l=>l.kind==='marriage'&&(l.a===id||l.b===id)&&P[l.a].y===P[l.b].y&&Math.abs(P[l.a].x-P[l.b].x)<100);return l?P[l.a===id?l.b:l.a]:null};
+  const W2=p=>Math.max(42,p.label.length*6+18);
+  let lines='';
+  for(const l of links){
+    if(!l.draw)continue;
+    const a=P[l.a],b=P[l.b],on=touches(l),dim=sel&&!on?' opacity=".25"':'';
+    if(l.kind==='child'){
+      const sp=spouse(a),x0=sp&&sp.y===a.y?(a.x+sp.x)/2:a.x,y0=a.y+11,ym=(a.y+b.y)/2;
+      lines+=`<path d="M${x0},${y0}V${ym}H${b.x}V${b.y-11}" fill="none" stroke="${on?'var(--ink)':'var(--mute)'}" stroke-width="${on?1.6:1}"${dim}/>`;
+    }else{
+      const far=a.y===b.y&&Math.abs(a.x-b.x)>100,dash=l.kind==='marriage'?'':' stroke-dasharray="3 3"';
+      const col=l.ended?'var(--rule)':l.kind==='engaged'?'var(--pivot)':l.kind==='marriage'?'var(--focal)':'var(--mute)';
+      const x1=a.x+(a.y===b.y?Math.sign(b.x-a.x)*W2(a)/2:0),x2=b.x-(a.y===b.y?Math.sign(b.x-a.x)*W2(b)/2:0);
+      const y1=a.y+(a.y===b.y?0:Math.sign(b.y-a.y)*11),y2=b.y-(a.y===b.y?0:Math.sign(b.y-a.y)*11);
+      const lift=far?Math.min(70,20+Math.abs(a.x-b.x)*.12):0;
+      const d=far?`M${a.x},${a.y+11}C${a.x},${a.y+11+lift} ${b.x},${b.y+11+lift} ${b.x},${b.y+11}`:`M${x1},${y1}L${x2},${y2}`;
+      lines+=`<path d="${d}" fill="none" stroke="${on?'var(--ink)':col}" stroke-width="${on?2:l.kind==='marriage'?1.8:1.2}"${dash}${dim}/>`;
+      if(far&&l.text)lines+=`<text x="${(a.x+b.x)/2}" y="${a.y+11+lift*.78}" class="tl"${dim}>${esc(l.ended?'engagement broken off':l.text)}</text>`;
+    }
+  }
+  const nodes=shown.map(p=>{const w=W2(p),k=[p.full,p.label].map(n=>SPK.indexOf(n)).find(x=>x>=0),c=k!=null?colorOf(k):'var(--mute)';
+    const rel=sel&&(sel===p.id||links.some(l=>touches(l)&&(l.a===p.id||l.b===p.id)));
+    return`<g class="mn" data-n="${p.id}" tabindex="0" role="button" aria-label="${esc(p.full)}"${sel&&!rel?' opacity=".3"':''}><rect x="${p.x-w/2}" y="${p.y-11}" width="${w}" height="22" rx="11" fill="var(--surface)" stroke="${sel===p.id?'var(--ink)':'var(--rule)'}" stroke-width="${sel===p.id?1.6:1}"/><circle cx="${p.x-w/2+10}" cy="${p.y}" r="3.5" fill="${c}"/><text x="${p.x+5}" y="${p.y+4}" text-anchor="middle" class="tn">${esc(p.label)}</text></g>`}).join('');
+  let info='<p class="note">Solid red lines are marriages, dashed lines are other ties. Tap a person to see how they are connected. Swipe sideways to see the whole tree.</p>';
+  if(sel){
+    const rel=links.filter(l=>l.a===sel||l.b===sel).map(l=>{const o=P[l.a===sel?l.b:l.a];const t=l.ended?'engagement broken off':l.kind==='child'?(l.a===sel?'child':'parent'):l.text||l.kind;return`<li><b>${esc(o.full)}</b> · ${esc(t)}</li>`}).join('');
+    info=`<div class="minfo"><div class="tt">${esc(P[sel].full)}</div>${rel?`<ul>${rel}</ul>`:''}</div>`;
+  }
+  const hidden=T.people.length-shown.length;
+  return`<div class="treebox"><svg viewBox="0 0 ${T.w} ${T.h}" width="${T.w*0.84}" role="img" aria-label="Family tree">${lines}${nodes}</svg></div>${info}${hidden?`<p class="note">${hidden} more ${hidden===1?'person joins':'people join'} the tree as you read. Nothing past your furthest point is shown.</p>`:''}`;
+}
 function renderGuide(){
   const box=$('guidePanel');
   if(!GUIDE){box.innerHTML='<p class="empty">A reading guide is not available for this book yet.</p>';return}
@@ -815,7 +900,7 @@ function renderGuide(){
   const story=GUIDE.chapters.map((x,k)=>({k,x})).filter(({k})=>k<c||(k===c&&done));
   const places=[];const seenP=new Set();SCENES.filter(x=>x.i<=maxRead()).forEach(x=>{const k=x.l.trim();if(!seenP.has(k)&&GUIDE.places[x.l]){seenP.add(k);places.push(x)}});
   box.innerHTML=`
-  ${GUIDE.map?journeyHTML():''}
+  ${GUIDE.map?journeyHTML():''}${GUIDE.england?englandHTML():''}
   <section class="gsec now"><h4>Right now</h4>
     <div class="gcard">
       <div class="gtitle">${esc(BOOK[c].t)}${sc?` · ${esc(sc.l)}`:''}</div>
@@ -832,9 +917,11 @@ function renderGuide(){
   ${(()=>{const st=story.filter(({k})=>k!==c);if(!st.length)return'';const recent=st.slice(-3),older=st.slice(0,-3);
     const li=({k,x})=>`<li value="${k+1}"><b>${esc(BOOK[k].t)}</b> ${esc(x.sum)}</li>`;
     return`<section class="gsec"><h4>The story so far</h4><div class="gcard">${older.length?`<details><summary>Earlier chapters (${older.length})</summary><ol class="story">${older.map(li).join('')}</ol></details>`:''}<ol class="story">${recent.map(li).join('')}</ol></div></section>`})()}
+  ${GUIDE.ledger?ledgerHTML():''}
   ${notes.length?`<section class="gsec"><h4>Background and context</h4><div class="gcard">${notes.map(([k,t,x])=>`<details${k===c?' open':''}><summary>${esc(t)}</summary><div class="sumtext">${esc(x)}</div></details>`).join('')}</div></section>`:''}
   ${places.length?`<section class="gsec"><h4>Places so far</h4><div class="gcard">${places.map(x=>`<details><summary>${esc(x.l)}</summary><div class="sumtext">${esc(GUIDE.places[x.l].desc)}</div>${GUIDE.places[x.l].ctx?`<div class="ctxnote">${esc(GUIDE.places[x.l].ctx)}</div>`:''}</details>`).join('')}</div></section>`:''}
   <p class="note">Everything here covers only what you have read, except the chapter summary when you choose to reveal it.</p>`;
+  bindLedger(box);
   const rv=$('gReveal');if(rv)rv.onclick=()=>{$('gSum').hidden=false;rv.remove()};
   box.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>{const n=b.dataset.person;box.querySelectorAll('[data-person]').forEach(x=>x.classList.toggle('on',x===b));$('gPerson').innerHTML=`<div class="tt" style="margin-top:8px">${esc(n)}</div><div class="st">${esc(CAST[n]||'')}</div>${personHTML(n)}`});
 }
@@ -1071,7 +1158,7 @@ let castView='list',mapSel=null;
 function metNames(){const m=maxRead();return Object.keys(FIRST).filter(n=>FIRST[n]<=m)}
 function drawCast(focus){
   const m=maxRead();
-  const sw=`<div class="seg cast-sw" id="castSw"><button data-v="list" aria-pressed="${castView==='list'}">List</button><button data-v="map" aria-pressed="${castView==='map'}">Map</button></div>`;
+  const sw=`<div class="seg cast-sw" id="castSw"><button data-v="list" aria-pressed="${castView==='list'}">List</button><button data-v="map" aria-pressed="${castView==='map'}">Map</button>${GUIDE&&GUIDE.tree?`<button data-v="tree" aria-pressed="${castView==='tree'}">Family</button>`:''}</div>`;
   const met=SPK.map((n,i)=>({n,i})).filter(x=>(FIRST[x.n]??Infinity)<=m);
   const later=SPK.length-met.length;
   let body='';
@@ -1079,10 +1166,13 @@ function drawCast(focus){
     body=`<p class="note">Only characters you have met so far. Each speaker keeps one colour throughout, and a faded question mark means the speaker was guessed.</p>
     <ul class="list">${met.map(({n,i})=>`<li><div class="${i===focus?'on':''}" data-s="${i}"><span class="dot" style="--c:${colorOf(i)}" aria-hidden="true"></span><span><div class="tt">${esc(n)}</div><div class="st">${esc(CAST[n]||'Referred to this way in the text.')}</div>${personHTML(n)}</span></div></li>`).join('')}</ul>
     ${later?`<p class="note">${later} more ${later===1?'character appears':'characters appear'} later in the book.</p>`:''}`;
-  } else body=mapHTML(m);
+  } else if(castView==='tree'&&GUIDE&&GUIDE.tree)body=treeHTML(m);
+  else body=mapHTML(m);
+  const tb=$('castList').querySelector('.treebox'),sl=tb?tb.scrollLeft:null;
   $('castList').innerHTML=sw+body;
+  const nb=$('castList').querySelector('.treebox');if(nb&&sl!=null)nb.scrollLeft=sl;
   $('castSw').onclick=e=>{const b=e.target.closest('button');if(!b)return;castView=b.dataset.v;drawCast(focus)};
-  if(castView==='map')bindMap();
+  if(castView==='map'||castView==='tree')bindMap();
   if(focus!=null&&castView==='list'){const el=$('castList').querySelector(`[data-s="${focus}"]`);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),30)}
 }
 function mapHTML(m){

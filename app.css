@@ -458,3 +458,28 @@ body{overscroll-behavior:none}
 .playing .stage .listen{opacity:0;pointer-events:none}
 .stage.has-audio .hint{padding-right:132px}
 .stage.buffering .word{opacity:.45;transition:opacity .3s var(--ease) .25s}
+
+/* Sense and Sensibility extras: England map, money ledger, family tree */
+.journey.eng svg{font-family:var(--serif)}
+.journey.eng .cty{font-size:7px;font-style:italic;fill:var(--mute);text-anchor:middle;opacity:.8}
+.journey.eng .stop{font-size:8px;fill:var(--ink)}
+.journey.eng .now{font-size:9.5px;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:2.5px}
+.journey.eng .site{font-size:7px;fill:var(--mute)}
+.journey.eng .gcard{padding:6px 6px 2px}
+.bars{display:grid;gap:2px;margin-top:6px}
+.barrow{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr) auto;align-items:center;gap:10px;background:none;border:0;padding:6px 4px;border-radius:10px;cursor:pointer;text-align:left;color:var(--ink);font:13px/1.3 var(--ui);min-height:40px}
+@media (hover:hover){.barrow:hover{background:var(--surface2)}}
+.barrow .bl{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.barrow .bt{height:8px;background:color-mix(in srgb,var(--rule) 45%,transparent);border-radius:4px;overflow:hidden}
+.barrow .bt i{display:block;height:100%;background:var(--pivot);border-radius:0 4px 4px 0}
+.barrow .bv{font-variant-numeric:tabular-nums;color:var(--mute);min-width:4.2em;text-align:right}
+.ledger{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:12px}
+.ledger li{padding:10px 12px;border-radius:14px;background:var(--surface);transition:box-shadow .3s var(--ease)}
+.ledger li.flash{box-shadow:0 0 0 2px var(--pivot)}
+.ledger .lh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:14.5px;margin-bottom:6px}
+.ledger .lh span{font-family:var(--serif);font-variant-numeric:tabular-nums;color:var(--pivot);white-space:nowrap}
+.ledger .ctxnote{margin-bottom:6px;font-style:italic}
+.treebox{background:var(--paper);border-radius:20px;margin:0 16px;padding:8px 4px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.treebox svg{display:block;height:auto;font-family:var(--serif)}
+.treebox .tn{font-size:11.5px;fill:var(--ink)}
+.treebox .tl{font-size:9.5px;font-style:italic;fill:var(--mute);text-anchor:middle;paint-order:stroke;stroke:var(--paper);stroke-width:3px}
