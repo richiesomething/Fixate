@@ -72,6 +72,7 @@ function buildModel(id){
   for(const n of m.map.nodes)m.first[n.id]=Math.min(m.first[n.id]??Infinity,n.i);
   cache[id]=m;
   applyStoredAISpeakers(m);
+  clearLetterSpeakers(m);
   return m;
 }
 function useModel(m){
@@ -232,6 +233,36 @@ function renderPlace(){
   if(h!==lastPlace){lastPlace=h;$('place').innerHTML=h}
 }
 
+/* ================= letters =================
+   Letters quoted in full (guide.letters: first and last word) are set on paper in Page view and the
+   guide, and the reading spot takes on a paper tint while a letter is being read. In the source text
+   each new line of a letter starts with an opening quote mark; here that becomes a line break. */
+const letterAt=i=>(GUIDE&&GUIDE.letters||[]).find(L=>i>=L.a&&i<=L.b)||null;
+function letterWord(i,L){
+  let w=W[i],br=false;
+  if(/^[“"]/.test(w)){w=w.slice(1);br=!PS[i]&&i!==L.a}
+  if(i===L.b||F[i]&2)w=w.replace(/[”"]$/,'');
+  return{w,br};
+}
+const paraEnd=i=>{while(i<N-1&&!(F[i]&2))i++;return i};
+// short opening (address and date) and closing (signature) paragraphs sit on the right, as in a letter
+const letterPara=(i,L)=>{const e=paraEnd(i),n=e-i+1;return(i===L.a&&n<=4)||(e>=L.b&&n<=12)?' class="lr"':''};
+function letterHTML(L){
+  let h='',open=false;
+  for(let i=L.a;i<=L.b;i++){
+    if(PS[i]||!open){if(open)h+='</p>';h+=`<p${letterPara(i,L)}>`;open=true}
+    const{w,br}=letterWord(i,L);h+=(br?'<br>':'')+esc(w)+' ';
+  }
+  return h+'</p>';
+}
+const ltag=document.createElement('div');ltag.className='ltag';ltag.setAttribute('aria-hidden','true');stage.appendChild(ltag);
+let lastLetter='';
+function renderLetter(){
+  const L=set.view==='page'?null:letterAt(idx),k=L?BOOKID+L.a:'';
+  if(k===lastLetter)return;lastLetter=k;
+  stage.classList.toggle('in-letter',!!L);ltag.textContent=L?`Letter · ${L.from} to ${L.to}`:'';
+}
+
 /* ================= page (pacer) rendering ================= */
 let pgFrom=-1,pgTo=-1,pgSpans=null,pgHL=[];
 function buildPage(){
@@ -241,15 +272,20 @@ function buildPage(){
   for(let j=a;j>=Math.max(cs,a-120);j--)if(PS[j]){a=j;break}
   const b=Math.min(ce,idx+700);
   let h=a===cs?`<h3>${esc(BOOK[c].t)}</h3>`:'';
-  let open=false;
+  let open=false,LT=null;
   for(let i=a;i<=b;i++){
-    if(PS[i]||!open){if(open)h+='</p>';h+='<p>';open=true}
+    if(PS[i]||!open){
+      if(open)h+='</p>';
+      if(LT&&i>LT.b){h+='</div>';LT=null}
+      const L=!LT&&letterAt(i);if(L){LT=L;h+=`<div class="letter"><div class="lt-h">${esc(L.from)} to ${esc(L.to)}</div>`}
+      h+=LT?`<p${letterPara(i,LT)}>`:'<p>';open=true}
     const sc=sceneStart.get(i); if(sc)h+=`<span class="sc">${esc(sc.l)}${sc.s?' · '+esc(sc.s):''}</span>`;
     const sp=set.voices&&showSpk(i);
     if(sp&&U[i])h+=`<span class="tag${G[i]?' g':''}" style="--c:${colorOf(S[i])}">${esc(SPK[S[i]])}${G[i]?'?':''}</span>`;
-    h+=`<span data-i="${i}"${sp?` class="sp" style="--c:${colorOf(S[i])}"`:''}>${esc(W[i])}</span> `;
+    const lw=LT?letterWord(i,LT):{w:W[i],br:false};
+    h+=`${lw.br?'<br>':''}<span data-i="${i}"${sp?` class="sp" style="--c:${colorOf(S[i])}"`:''}>${esc(lw.w)}</span> `;
   }
-  if(open)h+='</p>';
+  if(open)h+='</p>';if(LT)h+='</div>';
   pageEl.innerHTML=h;
   pgFrom=a;pgTo=b;pgSpans=new Map();
   pageEl.querySelectorAll('span[data-i]').forEach(el=>pgSpans.set(+el.dataset.i,el));
@@ -281,6 +317,7 @@ let metaT=0;
 function render(force){
   idx=unitStart(idx);
   if(set.view==='page')renderPage(force);else{renderFlash();renderWho()}
+  renderLetter();
   renderPlace();
   const now=performance.now();
   if(!playing||now-metaT>500){metaT=now;meta()}
@@ -315,7 +352,7 @@ function drawContext(){
     const sp=set.voices&&showSpk(i);
     if(sp&&(U[i]||i===a))h+=`<span class="tag${G[i]?' g':''}" style="--c:${colorOf(S[i])}">${esc(SPK[S[i]])}${G[i]?'?':''}</span>`;
     const cur=i>=idx&&i<idx+n;
-    h+=`<span data-i="${i}" class="${sp?'sp':''}${cur?' cur':''}"${sp?` style="--c:${colorOf(S[i])}"`:''}>${esc(W[i])}</span>`+((F[i]&2)&&i<b?'<br><br>':' ');
+    h+=`<span data-i="${i}" class="${sp?'sp':''}${cur?' cur':''}${letterAt(i)?' inl':''}"${sp?` style="--c:${colorOf(S[i])}"`:''}>${esc(W[i])}</span>`+((F[i]&2)&&i<b?'<br><br>':' ');
   }
   ctx.innerHTML=h;
   const cur=ctx.querySelector('.cur');if(cur)cur.scrollIntoView({block:'nearest'});
@@ -733,7 +770,10 @@ function applyAI(m,ci,names){
     if(n!=='unknown'){s=m.spk.indexOf(n);if(s<0){m.spk.push(n);s=m.spk.length-1}}
     for(let i=q[0];i<=q[1];i++){m.S[i]=s;m.G[i]=0}
   });
+  clearLetterSpeakers(m);
 }
+// letters are quoted text but not speech: no speaker colour, tag or pause inside them
+function clearLetterSpeakers(m){for(const L of (m.guide&&m.guide.letters)||[])for(let i=L.a;i<=L.b;i++){m.S[i]=-1;m.G[i]=0;m.U[i]=0}}
 function applyStoredAISpeakers(m){
   if(!store.aispk)return;
   for(const k in store.aispk){const [b,ci]=k.split(':');if(b===m.id)applyAI(m,+ci,store.aispk[k])}
@@ -839,6 +879,18 @@ function ledgerHTML(){
     ${later?`<p class="st">${later} more ${later===1?'sum comes':'sums come'} up later in the book.</p>`:''}
   </div></section>`;
 }
+function lettersHTML(){
+  const m=maxRead(),Ls=GUIDE.letters.filter(L=>L.b<=m),later=GUIDE.letters.length-Ls.length;
+  if(!Ls.length)return'';
+  return`<section class="gsec"><h4>Letters</h4><div class="gcard">
+    <div class="sumtext">The letters you have read so far, to read again.</div>
+    ${Ls.map(L=>`<details><summary><span><b>${esc(L.title)}</b><span class="st"> · ${esc(BOOK[chapterOf(L.a)].t)}</span></span></summary>
+      <div class="ctxnote">${esc(L.intro)}</div>
+      <div class="letter"><div class="lt-h">${esc(L.from)} to ${esc(L.to)}</div>${letterHTML(L)}</div>
+      <button class="btn tonal" data-goto="${L.a}">Read it in the book</button></details>`).join('')}
+    ${later?`<p class="st">${later} more ${later===1?'letter comes':'letters come'} later in the book.</p>`:''}
+  </div></section>`;
+}
 function bindLedger(box){
   box.querySelectorAll('[data-led]').forEach(b=>b.onclick=()=>{
     const li=$('led'+b.dataset.led);if(!li)return;
@@ -917,11 +969,12 @@ function renderGuide(){
   ${(()=>{const st=story.filter(({k})=>k!==c);if(!st.length)return'';const recent=st.slice(-3),older=st.slice(0,-3);
     const li=({k,x})=>`<li value="${k+1}"><b>${esc(BOOK[k].t)}</b> ${esc(x.sum)}</li>`;
     return`<section class="gsec"><h4>The story so far</h4><div class="gcard">${older.length?`<details><summary>Earlier chapters (${older.length})</summary><ol class="story">${older.map(li).join('')}</ol></details>`:''}<ol class="story">${recent.map(li).join('')}</ol></div></section>`})()}
-  ${GUIDE.ledger?ledgerHTML():''}
+  ${GUIDE.ledger?ledgerHTML():''}${GUIDE.letters?lettersHTML():''}
   ${notes.length?`<section class="gsec"><h4>Background and context</h4><div class="gcard">${notes.map(([k,t,x])=>`<details${k===c?' open':''}><summary>${esc(t)}</summary><div class="sumtext">${esc(x)}</div></details>`).join('')}</div></section>`:''}
   ${places.length?`<section class="gsec"><h4>Places so far</h4><div class="gcard">${places.map(x=>`<details><summary>${esc(x.l)}</summary><div class="sumtext">${esc(GUIDE.places[x.l].desc)}</div>${GUIDE.places[x.l].ctx?`<div class="ctxnote">${esc(GUIDE.places[x.l].ctx)}</div>`:''}</details>`).join('')}</div></section>`:''}
   <p class="note">Everything here covers only what you have read, except the chapter summary when you choose to reveal it.</p>`;
   bindLedger(box);
+  box.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{closeSheet();go(+b.dataset.goto)});
   const rv=$('gReveal');if(rv)rv.onclick=()=>{$('gSum').hidden=false;rv.remove()};
   box.querySelectorAll('[data-person]').forEach(b=>b.onclick=()=>{const n=b.dataset.person;box.querySelectorAll('[data-person]').forEach(x=>x.classList.toggle('on',x===b));$('gPerson').innerHTML=`<div class="tt" style="margin-top:8px">${esc(n)}</div><div class="st">${esc(CAST[n]||'')}</div>${personHTML(n)}`});
 }
@@ -1731,7 +1784,7 @@ async function switchBook(id){
   useModel(buildModel(id));
   idx=clamp(store.pos[id]|0,0,N-1);
   if(store.place[id]==null&&idx>0)store.place[id]=idx;
-  scrub.max=N-1;pgFrom=-1;pgTo=-1;lastWho=null;lastPlace=null;chapterEnd=false;lastQuizIdx=0;rewinds=[];
+  scrub.max=N-1;pgFrom=-1;pgTo=-1;lastWho=null;lastLetter=null;lastPlace=null;chapterEnd=false;lastQuizIdx=0;rewinds=[];
   sessOpen=null;
   stopAudio();audCh=-1;AUD=null;if(set.audio&&hasAudio())loadAudio(id);applyAudioUI();
   setHeader();drawChapters();syncChunks();layout();save(true);

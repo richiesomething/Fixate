@@ -483,3 +483,20 @@ body{overscroll-behavior:none}
 .treebox svg{display:block;height:auto;font-family:var(--serif)}
 .treebox .tn{font-size:11.5px;fill:var(--ink)}
 .treebox .tl{font-size:9.5px;font-style:italic;fill:var(--mute);text-anchor:middle;paint-order:stroke;stroke:var(--paper);stroke-width:3px}
+
+/* letters on paper */
+:root{--letterbg:#F7F0DE;--letterline:#E2D6B8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]):not([data-theme="night"]){--letterbg:#2B2924;--letterline:#3D3830}}
+:root[data-theme="dark"]{--letterbg:#2B2924;--letterline:#3D3830}
+:root[data-theme="night"]{--letterbg:#221B14;--letterline:#382D20}
+.letter{background:var(--letterbg);color:var(--word);border:1px solid var(--letterline);border-radius:3px;padding:16px 18px 6px;margin:1.1em 0 1.3em;box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 18px -12px rgba(0,0,0,.35);font-style:normal;line-height:1.7}
+.page .letter{max-width:34em}
+.letter p{margin:0 0 .9em}
+.letter p.lr{text-align:right}
+.letter .lt-h{font:600 11px var(--ui);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+.gcard .letter{font-family:var(--read);font-size:15px}
+.gcard details .btn{margin:2px 0 6px}
+.stage.in-letter{background:var(--letterbg);box-shadow:inset 0 0 0 1px var(--letterline)}
+.ltag{position:absolute;left:0;right:0;bottom:12px;text-align:center;font:italic 13px var(--serif);color:var(--mute);pointer-events:none;opacity:0;transition:opacity .3s var(--ease)}
+.stage.in-letter .ltag{opacity:.9}
+.context span.inl{font-style:italic}

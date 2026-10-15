@@ -183,6 +183,29 @@ for l in tree['links']:
     pa = next(p for p in tree['people'] if p['id'] == l['a']); pb = next(p for p in tree['people'] if p['id'] == l['b'])
     assert l['labels'][0][0] >= max(pa['i'], pb['i']) - 5000 or True
 
+# ---------------- letters ----------------
+# Each letter is a run of whole paragraphs: a = its first word, b = its last word. "intro" is Austen's
+# own sentence that introduces it.
+def span(start_pat, end_pat):
+    a = at(start_pat); b = at(end_pat, 0, a)
+    ends = []; k = 0
+    for c in book['chs']:
+        for p in c['p']: k += len(p.split(' ')); ends.append(k - 1)
+    b = min(e for e in ends if e >= b)  # last word of the paragraph the end phrase is in
+    return a, b
+LET = []
+def letter(start_pat, end_pat, frm, to, title, intro):
+    a, b = span(start_pat, end_pat); check(intro, a)
+    LET.append({'a': a, 'b': b, 'from': frm, 'to': to, 'title': title, 'intro': intro})
+letter(r'“Bond Street, January\.', r'“JOHN WILLOUGHBY\.”', 'Willoughby', 'Marianne', 'Willoughby’s reply', 'and then turning eagerly to Willoughby’s letter, read as follows:')
+letter(r'Berkeley Street, January\. “How surprised', r'“M\.D\.”', 'Marianne', 'Willoughby', 'Marianne’s first note', 'The first, which was what her sister had sent him on their arrival in town, was to this effect.')
+letter(r'“I cannot express my disappointment in having missed you', r'“M\.D\.”', 'Marianne', 'Willoughby', 'Marianne’s second note', 'Her second note, which had been written on the morning after the dance at the Middletons’, was in these words:—')
+letter(r'“What am I to imagine, Willoughby, by your behaviour last night', r'“M\.D\.”', 'Marianne', 'Willoughby', 'Marianne’s last note', 'The contents of her last note to him were these:—')
+letter(r'“Bartlett’s Building, March\.', r'“I am, &c\.”', 'Lucy Steele', 'Elinor', 'Lucy’s letter to Elinor', 'The next morning brought Elinor a letter by the two-penny post from Lucy herself.')
+letter(r'“DEAR SIR, “Being very sure', r'the ring with my hair you are very welcome to keep\.”', 'Lucy', 'Edward', 'Lucy’s letter to Edward', 'He put the letter into Elinor’s hands.')
+for L_ in LET: print('letter', L_['title'], L_['a'], L_['b'], '|', ' '.join(W[L_['a']:L_['a']+6]), '…', ' '.join(W[L_['b']-4:L_['b']+1]))
+
+book['guide']['letters'] = LET
 book['guide']['england'] = england
 book['guide']['ledger'] = ledger
 book['guide']['tree'] = tree

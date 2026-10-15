@@ -6,6 +6,8 @@
   package, `countries-10m.json`), the Dashwoods' route and other places mentioned.
 - `ledger`: every sum of money in the book, with the quote it comes from.
 - `tree`: the family tree, with links whose labels change as the story reveals more.
+- `letters`: the six letters quoted in full (first and last word of each, and Austen's sentence
+  introducing it), shown on paper in Page view and the guide.
 
 Every item carries `i`, the index of the word after which the book has revealed it, found by
 searching the text itself (`find.py`). Quotes are checked against the text when the script runs.
