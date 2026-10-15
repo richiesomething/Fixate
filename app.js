@@ -2056,7 +2056,15 @@ async function keepAwake(on){
 // ask the browser not to clear progress, saved words and added PDFs when space runs low
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persisted().then(p=>{if(!p)navigator.storage.persist()}).catch(()=>{});
 // offline support and installability
-if('serviceWorker' in navigator&&location.protocol.startsWith('http')){const reg=()=>navigator.serviceWorker.register('sw.js').catch(()=>{});document.readyState==='complete'?reg():addEventListener('load',reg)}
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  const sw=navigator.serviceWorker,reg=()=>sw.register('sw.js').then(r=>{
+    // an app left open on a phone can go days without a page load, so look for updates when it comes back
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update().catch(()=>{})});
+  }).catch(()=>{});
+  document.readyState==='complete'?reg():addEventListener('load',reg);
+  // a new version took over: reload into it (after saving), waiting until the reader is paused
+  if(sw.controller)sw.addEventListener('controllerchange',()=>{const go=()=>{if(playing)return setTimeout(go,1500);save(true);location.reload()};go()},{once:true});
+}
 window.addEventListener('resize',()=>{pgLastTop=-1;layout()});
 
 scrub.max=N-1;setHeader();drawChapters();updateBadge();

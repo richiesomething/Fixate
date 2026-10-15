@@ -1,10 +1,11 @@
 /* Fixate service worker.
-   - The app shell is precached and served from cache, then refreshed in the background.
+   - The app shell is precached. Online, it is fetched fresh (so updates show up on the next open);
+     if the network is slow (3 s) or offline, the cached copy is used.
    - Books and word lists are saved the first time they're fetched, so anything you've opened works
      offline. They never change for a given VERSION.
    - Google Fonts and pdf.js are cached on first use.
    Bump VERSION whenever books/ or data/ change; shell files update themselves. */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL = `fixate-shell-${VERSION}`;
 const DATA = `fixate-data-${VERSION}`;
 const EXTERNAL = 'fixate-external-v1';
@@ -30,18 +31,22 @@ async function cacheFirst(req, name) {
   return res;
 }
 
-async function staleWhileRevalidate(req, name, e) {
+async function networkFirst(req, name, e) {
   const cache = await caches.open(name);
-  const hit = await cache.match(req, { ignoreSearch: true });
-  const fresh = fetch(req).then(res => {
-    if (res.ok) cache.put(req, res.clone());
+  const fresh = fetch(req, { cache: 'no-cache' }).then(res => {
+    if (res.ok) e.waitUntil(cache.put(req, res.clone()));
     return res;
   });
-  if (hit) {
-    e.waitUntil(fresh.catch(() => {}));
-    return hit;
+  const slow = new Promise(r => setTimeout(r, 3000)).then(() => cache.match(req, { ignoreSearch: true }));
+  try {
+    const res = await Promise.race([fresh, slow]);
+    if (res) return res;
+    return await fresh;
+  } catch {
+    const hit = await cache.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    throw new Error('offline');
   }
-  return fresh;
 }
 
 self.addEventListener('fetch', e => {
@@ -51,11 +56,11 @@ self.addEventListener('fetch', e => {
 
   if (url.origin === location.origin) {
     if (req.mode === 'navigate') {
-      e.respondWith(staleWhileRevalidate(new Request('index.html'), SHELL, e).catch(() => caches.match('index.html')));
+      e.respondWith(networkFirst(new Request('index.html'), SHELL, e).catch(() => caches.match('index.html')));
     } else if (/\/(books|data)\//.test(url.pathname)) {
       e.respondWith(cacheFirst(req, DATA));
     } else {
-      e.respondWith(staleWhileRevalidate(req, SHELL, e));
+      e.respondWith(networkFirst(req, SHELL, e));
     }
     return;
   }

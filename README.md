@@ -27,8 +27,9 @@ Then open http://localhost:8000. The service worker only runs over `http(s)`, no
 ## Deploy
 Every push to `main` publishes automatically: `.github/workflows/pages.yml` copies the site to the
 `gh-pages` branch, which GitHub Pages serves at the live link above. Fixate is fully static, so any
-other static host works too. When `books/` or `data/` change, bump `VERSION` in `sw.js` so installed copies download the
-new files.
+other static host works too. The app's own files are fetched fresh whenever the phone is online, so a push shows up the next
+time the app is opened. When `books/` or `data/` change, bump `VERSION` in `sw.js` so installed copies
+download the new files; an open app reloads into the new version once the reader is paused.
 
 ## Claude artifact version
     node tools/build-single.mjs          # writes dist/fixate-single.html
