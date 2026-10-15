@@ -88,7 +88,7 @@ const sceneAt=i=>{let r=null;for(const s of SCENES){if(s.i<=i)r=s;else break}ret
 
 /* ================= settings & storage ================= */
 const DEF={
-  view:'flash', widthMode:'auto', width:14, adapt:'0.6', pause:'1', resume:'sentence', chapStop:true,
+  view:'flash', widthMode:'auto', width:14, adapt:'0.6', timing:'balanced', pause:'1', resume:'sentence', chapStop:true,
   theme:'system', font:'serif', size:1, focus:'red', focal:'classic', dim:true,
   voices:true, audio:false, aiSpeakers:true, claude:true, before:true, recall:true, coach:true, checks:'choose'
 };
@@ -386,7 +386,8 @@ let lastAutoSave=0,playing=false,timer=0,ramp=0,movedSincePause=true,chapterEnd=
    - words after the first in a chunk are processed partly in parallel
    - extra time when a chunk is visually wide
    - wrap-up pauses at commas, sentence ends (longer after long sentences), paragraphs and chapters
-   Everything is then scaled so the book as a whole runs at exactly the speed you set. */
+   Everything is then scaled so the book as a whole runs at exactly the speed you set.
+   One word at a time uses its own variant (below) unless Classic timing is chosen. */
 const FLASH=.35,PAR=.85;
 function chunkUnits(i){
   const n=CL[i],a=+set.adapt,k=+set.pause;
@@ -397,6 +398,30 @@ function chunkUnits(i){
   if(f&8)e=2.5;else if(f&2)e=1.3;else if(f&1)e=.9+Math.min(.4,Math.max(0,(SL[i+n-1]-15)*.012));else if(f&4)e=.45;
   return u+e*k;
 }
+/* ---- one word at a time ----
+   With a single word per flash the fixed per-flash cost above mostly flattens the differences between
+   easy and hard words, so it is cut to a sliver. Pauses are split: a small part scales with speed, the
+   rest is real time (wrap-up at the end of a sentence takes about as long at any speed), capped so pauses
+   never take more than 14% of reading time. Hard and easy words differ a little more than in phrases
+   (ADAPT1), and no word shows for less than 70 ms (less only above about 850 wpm, so your speed holds). */
+const FLASH1=.1,ADAPT1=1.15,PAUSE_CAP=.14,MIN_MS=70;
+const oneWord=()=>targetWidth()<=0;
+const balanced=()=>set.timing!=='classic'&&oneWord();
+function pause1(j){ // [speed-scaled units, real-time ms] after word j
+  const f=F[j],k=+set.pause;
+  if(f&8)return[1.25*k,700*k];
+  if(f&2)return[.65*k,350*k];
+  if(f&1){const x=clamp((SL[j]-15)/33,0,1);return[(.45+.2*x)*k,(220+80*x)*k]}
+  if(f&4)return[.2*k,100*k];
+  return[0,0];
+}
+function word1(i){ // [units, real-time ms] for word i shown alone
+  const [pu,pm]=pause1(i);
+  let u=FLASH1+1+ADAPT1*(+set.adapt)*(WT[i]-1)+pu;
+  if(set.voices&&U[i]&&S[i]>=0)u+=.175+(prevSpeaker(i)!==S[i]?.175:0);
+  return[u,pm];
+}
+let NORM={};
 function recalcNorm(){
   let Un=0,i=0;
   while(i<N){
@@ -404,16 +429,35 @@ function recalcNorm(){
     if(set.voices&&U[i]&&S[i]>=0)Un+=.35+(prevSpeaker(i)!==S[i]?.35:0);
     i+=CL[i];
   }
-  const U_=Un;
-  unitPerWord=U_/N;normDirty=false;
+  unitPerWord=Un/N;NORM={};normDirty=false;
+}
+function norm1(base){ // per speed: scale for the speed-scaled part so the book, minimum included, runs at your speed
+  if(!NORM.w){const wu=new Float32Array(N),wm=new Float32Array(N);let m=0;for(let i=0;i<N;i++){const [a,b]=word1(i);wu[i]=a;wm[i]=b;m+=b}NORM.w={wu,wm,m}}
+  const {wu,wm,m}=NORM.w;
+  if(NORM.base!==base){
+    const total=N*base,fix=Math.min(m,total*PAUSE_CAP),fk=m?fix/m:0,fl=Math.min(MIN_MS,base*.6);
+    const cost=sc=>{let t=0;for(let i=0;i<N;i++)t+=Math.max(fl,wu[i]*sc+wm[i]*fk);return t};
+    let lo=0,hi=2*total/wu.reduce((a,b)=>a+b,0);
+    for(let it=0;it<22;it++){const mid=(lo+hi)/2;if(cost(mid)>total)hi=mid;else lo=mid}
+    Object.assign(NORM,{base,sc:lo,fk,fl});
+  }
+  return NORM;
+}
+function delayClassic(i,base){
+  let ms=chunkUnits(i)*base/unitPerWord;
+  if(set.voices&&U[i]){ms+=base*.35;if(prevSpeaker(i)!==S[i])ms+=base*.35}
+  return Math.max(base*.4,ms);
+}
+function delayBalanced(i,base){
+  const {sc,fk,fl}=norm1(base),[wu,wm]=word1(i);
+  return Math.max(fl,wu*sc+wm*fk);
 }
 function delay(i){
   if(normDirty)recalcNorm();
   const base=60000/curWpm();
-  let ms=chunkUnits(i)*base/unitPerWord;
-  if(set.voices&&U[i]){ms+=base*.35;if(prevSpeaker(i)!==S[i])ms+=base*.35}
+  let ms=balanced()?delayBalanced(i,base):delayClassic(i,base);
   if(ramp>0){ms*=1+ramp*.12;ramp--}
-  return Math.max(base*.4,ms);
+  return ms;
 }
 function tickClock(){
   const now=performance.now(), dt=Math.min(4000,now-lastT); lastT=now;
@@ -1903,6 +1947,7 @@ function bindControls(root,specs,rerender){
   root.querySelectorAll('input[type=checkbox][data-k]').forEach(i=>i.onchange=()=>{set[i.dataset.k]=i.checked;changed(i.dataset.k);rerender()});
   root.querySelectorAll('input[type=range][data-k]').forEach(i=>{
     i.oninput=()=>{fill(i);const k=i.dataset.k;set[k]=+i.value;const o=root.querySelector(`[data-o="${k}"]`);if(o)o.textContent=byK[k].fmt(+i.value);changed(k);if(byK[k].live)byK[k].live()};
+    if(i.dataset.k==='width')i.onchange=()=>rerender(); // one-word options appear at the slider's far left
   });
 }
 function changed(k){
@@ -1910,6 +1955,17 @@ function changed(k){
   applySettings();save();
 }
 const wFmt=v=>+v===0?'One word':`${v} characters`;
+// how long each word of the current sentence shows, Balanced against Classic, at the current speed
+function timingHTML(){
+  if(!oneWord()||!N)return'';
+  if(normDirty)recalcNorm();
+  const base=60000/curWpm(),si=sentIdx(idx),s=sentStart[si],e=Math.min(N-1,(sentStart[si+1]??N)-1,s+24);
+  const rows=[];for(let i=s;i<=e;i++)rows.push([W[i],delayBalanced(i,base),delayClassic(i,base)]);
+  const top=Math.max(...rows.map(r=>Math.max(r[1],r[2])));
+  return`<div class="row" id="timingPrev"><span class="lbl">This sentence at ${curWpm()} wpm<output>ms per word</output></span>
+    <div class="tprev">${rows.map(([w,b,c])=>`<div class="tw"><span class="tt">${esc(w)}</span><span class="tb"><i class="b" style="width:${(b/top*100).toFixed(1)}%"></i><i class="c" style="width:${(c/top*100).toFixed(1)}%"></i></span><span class="tv">${Math.round(set.timing==='classic'?c:b)}</span></div>`).join('')}</div>
+    <div class="st tkey"><span><i class="b"></i>Balanced</span><span><i class="c"></i>Classic</span></div></div>`;
+}
 function previewHTML(){
   const C=targetWidth();
   const s=sentStart[sentIdx(idx)],e=Math.min(N-1,(sentStart[sentIdx(idx)+1]??N)-1,s+40);
@@ -1922,6 +1978,8 @@ const SETTINGS=[
   {k:'widthMode',type:'seg',label:'Chunk size',opts:[['auto','Auto'],['manual','Custom']],desc:'Auto widens chunks as you speed up, so faster reading means fewer, larger flashes instead of a strobe of single words.'},
   {k:'width',type:'range',label:'Chunk width',min:0,max:36,step:1,fmt:wFmt,show:()=>set.widthMode==='manual',live:()=>{const p=$('preview');if(p)p.parentElement.outerHTML=previewHTML()}},
   {type:'html',html:previewHTML},
+  {k:'timing',type:'seg',label:'One-word timing',opts:[['balanced','Balanced'],['classic','Classic']],desc:'Balanced gives long, rare words clearly more time and keeps real pauses at commas and sentence ends however fast you read. Classic is the earlier timing.',show:oneWord},
+  {type:'html',html:timingHTML},
   {k:'adapt',type:'seg',label:'Adaptive timing',opts:[['0','Off'],['0.6','Gentle'],['1','Full']],desc:'Gives hard passages more time and easy ones less, while the book as a whole runs at your set speed.'},
   {k:'audio',type:'toggle',label:'Read-along audio',desc:'Hear the audiobook while the words flash, in step with the narrator. The narration speeds up or slows down with your reading speed.',show:()=>hasAudio()},
   {k:'voices',type:'toggle',label:'Speaker cues',desc:'Each character\'s words take on their own colour, with a short pause when someone new starts talking.'},
