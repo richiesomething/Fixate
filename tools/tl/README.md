@@ -12,7 +12,9 @@ card and chapter list. The full notice and license are in `books/tl.LICENSE.txt`
    asterisks are dropped (each note stays as its own paragraph) and short letter lines stand alone.
 3. `node annotate.mjs` runs the app's own annotation pipeline (phrase weights for timing, phrase breaks,
    the chapter word lists) and writes `annotated.json`.
-4. `python3 build_tl.py` (needs `countries-110m.json` from the world-atlas package, https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json) adds scenes, the character map, the chapter guide and the extras:
+4. `labels.py` holds hand-checked speaker labels, one code per quote in reading order (A Aronnax, C Conseil,
+   N Ned Land, E Nemo, F Farragut, - not speech, a thought or a minor voice); they colour each character's dialogue.
+5. `python3 build_tl.py` (needs `countries-110m.json` from the world-atlas package, https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json) adds scenes, the character map, the chapter guide and the extras:
    - `guide.voyage`: 28 stops on a world map (x = longitude + 120, y = 80 − latitude), plus the
      leagues counter from the narrator's running totals.
    - `guide.depths`: each depth the text gives, in metres as Walter keeps them.
