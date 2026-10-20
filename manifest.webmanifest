@@ -1,0 +1,19 @@
+{
+  "name": "Fixate — speed reader",
+  "short_name": "Fixate",
+  "description": "Read faster and understand more: one phrase at a time, with speaker cues, word help and a reading guide.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#E8EAE4",
+  "theme_color": "#E8EAE4",
+  "categories": ["books", "education", "productivity"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
